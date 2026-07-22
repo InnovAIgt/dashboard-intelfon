@@ -151,15 +151,28 @@
     async function cargarDatosBD() {
       const client = getSupabase();
       const tabla = document.getElementById('select-tabla').value;
+      const desde = document.getElementById('fecha-desde').value; // yyyy-mm-dd
+      const hasta = document.getElementById('fecha-hasta').value; // yyyy-mm-dd
       const estado = document.getElementById('estado-cargando');
-      
+
       estado.classList.remove('hidden');
 
       try {
-        const { data, error } = await client
+        // Columna de fecha por tabla (ajusta si tu tabla usa otro nombre)
+        const columnaFecha = tabla === 'llamadas' ? 'fecha'
+          : tabla === 'historiales' ? 'fecha_gestion'
+          : 'fecha_creacion';
+
+        let query = client
           .from(tabla)
           .select('*')
-          .limit(1000); // Límite inicial ajustable
+          .order(columnaFecha, { ascending: false })
+          .limit(5000); // sube este límite si tu tabla crece más
+
+        if (desde) query = query.gte(columnaFecha, `${desde}T00:00:00.000Z`);
+        if (hasta) query = query.lte(columnaFecha, `${hasta}T23:59:59.999Z`);
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -252,17 +265,37 @@
       }
     }
 
-    // 5. Aplicar Filtro de búsqueda local
+    // 5. Aplicar Filtro de búsqueda local (texto + rango de fechas sobre lo ya cargado)
     function aplicarFiltroLocal() {
       const q = document.getElementById('input-buscar').value.toLowerCase().trim();
-      if (!q) {
-        renderizarTabla(datosCache);
-        return;
+      const desde = document.getElementById('fecha-desde').value;
+      const hasta = document.getElementById('fecha-hasta').value;
+      const tabla = document.getElementById('select-tabla').value;
+      const columnaFecha = tabla === 'llamadas' ? 'fecha'
+        : tabla === 'historiales' ? 'fecha_gestion'
+        : 'fecha_creacion';
+
+      let filtrados = datosCache;
+
+      if (desde || hasta) {
+        const desdeTime = desde ? new Date(`${desde}T00:00:00.000Z`).getTime() : null;
+        const hastaTime = hasta ? new Date(`${hasta}T23:59:59.999Z`).getTime() : null;
+
+        filtrados = filtrados.filter(item => {
+          const valorFecha = item[columnaFecha];
+          if (!valorFecha) return false;
+          const t = new Date(valorFecha).getTime();
+          if (desdeTime !== null && t < desdeTime) return false;
+          if (hastaTime !== null && t > hastaTime) return false;
+          return true;
+        });
       }
-      
-      const filtrados = datosCache.filter(item => {
-        return Object.values(item).some(v => String(v).toLowerCase().includes(q));
-      });
+
+      if (q) {
+        filtrados = filtrados.filter(item => {
+          return Object.values(item).some(v => String(v).toLowerCase().includes(q));
+        });
+      }
 
       renderizarTabla(filtrados);
     }
