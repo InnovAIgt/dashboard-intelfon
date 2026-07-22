@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard RED Intelfon - Reportes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.95em;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95em;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+            border: 2px solid #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background: #efefef;
+            border-color: #667eea;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        th {
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        tbody tr:hover {
+            background: #f9f9f9;
+            transition: background 0.2s ease;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-new {
+            background: #dbeafe;
+            color: #0369a1;
+        }
+
+        .status-updated {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .status-old {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+            color: #4c5282;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #dcfce7;
+            border: 1px solid #10b981;
+            color: #15803d;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            border: 1px solid #0284c7;
+            color: #0c4a6e;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .sync-status {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 0.85em;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Dashboard RED Intelfon</h1>
+            <p>Gestión de Reportes y Sincronización de Datos</p>
+        </div>
+
+        <div class="card">
+            <div class="alert alert-info" id="alertInfo"></div>
+            <div class="alert alert-success" id="alertSuccess"></div>
+            <div class="alert alert-error" id="alertError"></div>
+
+            <div id="stats" class="stats"></div>
+
+            <h2 style="margin-bottom: 15px; color: #333;">⚙️ Configuración</h2>
+            <div class="filter-group" style="margin-bottom: 20px;">
+                <label for="supabaseUrl">URL de Supabase</label>
+                <input type="password" id="supabaseUrl" placeholder="https://xxxx.supabase.co" />
+                <small style="color: #999; margin-top: 5px;">Se guardará localmente (nunca se envía a GitHub)</small>
+            </div>
+
+            <div class="filter-group" style="margin-bottom: 20px;">
+                <label for="supabaseKey">Anon Key de Supabase</label>
+                <input type="password" id="supabaseKey" placeholder="eyJhbGc..." />
+                <small style="color: #999; margin-top: 5px;">Se guardará localmente (nunca se envía a GitHub)</small>
+            </div>
+
+            <button class="btn-secondary" onclick="toggleCredentials()">👁️ Mostrar/Ocultar Credenciales</button>
+            <button class="btn-secondary" onclick="clearCredentials()" style="margin-left: 10px;">🗑️ Limpiar Credenciales</button>
+
+            <h2 style="margin-top: 30px; margin-bottom: 15px; color: #333;">📋 Filtros</h2>
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="filterTable">Tabla</label>
+                    <select id="filterTable">
+                        <option value="">Todas las tablas</option>
+                        <option value="leads">Leads</option>
+                        <option value="historiales">Historiales</option>
+                        <option value="llamadas">Llamadas</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterDateFrom">Desde</label>
+                    <input type="date" id="filterDateFrom" />
+                </div>
+                <div class="filter-group">
+                    <label for="filterDateTo">Hasta</label>
+                    <input type="date" id="filterDateTo" />
+                </div>
+                <div class="filter-group">
+                    <label for="filterSearch">Buscar</label>
+                    <input type="text" id="filterSearch" placeholder="Busca por cualquier campo..." />
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="loadAllData()">🔄 Cargar Todo</button>
+                <button class="btn-success" onclick="syncNewData()">⬆️ Sincronizar Nuevos</button>
+                <button class="btn-secondary" onclick="applyFilters()">🔍 Aplicar Filtros</button>
+                <button class="btn-secondary" onclick="exportToCSV()">💾 Exportar CSV</button>
+                <button class="btn-danger" onclick="clearAllData()">🗑️ Limpiar Caché</button>
+            </div>
+
+            <div class="sync-status" id="syncStatus"></div>
+        </div>
+
+        <div class="card">
+            <div id="tableContainer" class="table-container">
+                <div class="no-data">👋 Carga datos para comenzar</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURACIÓN Y CONSTANTES
+        // ============================================
+        const STORAGE_KEY_URL = 'sb_url';
+        const STORAGE_KEY_KEY = 'sb_key';
+        const CACHE_KEY = 'table_cache';
+        const LAST_SYNC_KEY = 'last_sync_date';
+        const MIN_DATE = new Date('2024-07-01');
+
+        let supabaseUrl = '';
+        let supabaseKey = '';
+        let cachedData = {
+            leads: [],
+            historiales: [],
+            llamadas: []
+        };
+
+        // ============================================
+        // SEGURIDAD: CARGAR CREDENCIALES DEL STORAGE
+        // ============================================
+        function loadCredentials() {
+            supabaseUrl = localStorage.getItem(STORAGE_KEY_URL) || '';
+            supabaseKey = localStorage.getItem(STORAGE_KEY_KEY) || '';
+            
+            if (supabaseUrl) document.getElementById('supabaseUrl').value = supabaseUrl;
+            if (supabaseKey) document.getElementById('supabaseKey').value = supabaseKey;
+        }
+
+        function saveCredentials() {
+            supabaseUrl = document.getElementById('supabaseUrl').value;
+            supabaseKey = document.getElementById('supabaseKey').value;
+
+            if (!supabaseUrl || !supabaseKey) {
+                showAlert('error', '❌ Ingresa URL y Key de Supabase');
+                return false;
+            }
+
+            localStorage.setItem(STORAGE_KEY_URL, supabaseUrl);
+            localStorage.setItem(STORAGE_KEY_KEY, supabaseKey);
+            showAlert('success', '✅ Credenciales guardadas localmente');
+            return true;
+        }
+
+        function toggleCredentials() {
+            const urlInput = document.getElementById('supabaseUrl');
+            const keyInput = document.getElementById('supabaseKey');
+
+            urlInput.type = urlInput.type === 'password' ? 'text' : 'password';
+            keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+        }
+
+        function clearCredentials() {
+            if (confirm('¿Estás seguro? Se eliminarán las credenciales guardadas.')) {
+                localStorage.removeItem(STORAGE_KEY_URL);
+                localStorage.removeItem(STORAGE_KEY_KEY);
+                document.getElementById('supabaseUrl').value = '';
+                document.getElementById('supabaseKey').value = '';
+                supabaseUrl = '';
+                supabaseKey = '';
+                showAlert('success', '✅ Credenciales eliminadas');
+            }
+        }
+
+        // ============================================
+        // API SUPABASE
+        // ============================================
+        async function supabaseQuery(table, filters = {}) {
+            if (!saveCredentials()) return [];
+
+            try {
+                let query = `${supabaseUrl}/rest/v1/${table}?select=*`;
+
+                // Filtro de fecha mínima
+                const minDateStr = MIN_DATE.toISOString().split('T')[0];
+                query += `&created_at=gte.${minDateStr}`;
+
+                // Agregar filtros adicionales si existen
+                Object.entries(filters).forEach(([key, value]) => {
+                    if (value) {
+                        query += `&${key}=eq.${encodeURIComponent(value)}`;
+                    }
+                });
+
+                query += '&order=created_at.desc&limit=10000';
+
+                const response = await fetch(query, {
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error(`Error en ${table}:`, error);
+                showAlert('error', `❌ Error al cargar ${table}: ${error.message}`);
+                return [];
+            }
+        }
+
+        // ============================================
+        // CACHÉ Y SINCRONIZACIÓN
+        // ============================================
+        function loadCache() {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                cachedData = JSON.parse(cached);
+            }
+        }
+
+        function saveCache() {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(cachedData));
+        }
+
+        function getLastSyncDate() {
+            const lastSync = localStorage.getItem(LAST_SYNC_KEY);
+            return lastSync ? new Date(lastSync) : MIN_DATE;
+        }
+
+        function updateLastSyncDate() {
+            localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+        }
+
+        // ============================================
+        // CARGAR DATOS
+        // ============================================
+        async function loadAllData() {
+            showLoading();
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(a => a.classList.remove('show'));
+
+            try {
+                const leadsData = await supabaseQuery('leads');
+                const historialesData = await supabaseQuery('historiales');
+                const llamadasData = await supabaseQuery('llamadas');
+
+                cachedData.leads = leadsData;
+                cachedData.historiales = historialesData;
+                cachedData.llamadas = llamadasData;
+
+                saveCache();
+                updateLastSyncDate();
+
+                displayTable(cachedData.leads);
+                updateStats();
+                showAlert('success', `✅ Datos cargados: ${leadsData.length} leads, ${historialesData.length} historiales, ${llamadasData.length} llamadas`);
+            } catch (error) {
+                showAlert('error', `❌ Error al cargar datos: ${error.message}`);
+            }
+        }
+
+        async function syncNewData() {
+            showLoading();
+            const lastSync = getLastSyncDate();
+
+            try {
+                // Traer solo datos desde la última sincronización
+                const leadsData = await supabaseQuery('leads', {
+                    created_at: `gte.${lastSync.toISOString()}`
+                });
+
+                const historialesData = await supabaseQuery('historiales', {
+                    created_at: `gte.${lastSync.toISOString()}`
+                });
+
+                const llamadasData = await supabaseQuery('llamadas', {
+                    created_at: `gte.${lastSync.toISOString()}`
+                });
+
+                // Combinar con datos existentes (evitar duplicados)
+                cachedData.leads = mergeData(cachedData.leads, leadsData);
+                cachedData.historiales = mergeData(cachedData.historiales, historialesData);
+                cachedData.llamadas = mergeData(cachedData.llamadas, llamadasData);
+
+                saveCache();
+                updateLastSyncDate();
+
+                const totalNew = leadsData.length + historialesData.length + llamadasData.length;
+                displayTable(cachedData.leads);
+                updateStats();
+                showAlert('success', `✅ Sincronización completada: ${totalNew} registros nuevos`);
+            } catch (error) {
+                showAlert('error', `❌ Error en sincronización: ${error.message}`);
+            }
+        }
+
+        function mergeData(existing, newData) {
+            const idMap = new Map(existing.map(item => [item.id, item]));
+            newData.forEach(item => idMap.set(item.id, item));
+            return Array.from(idMap.values()).sort((a, b) => 
+                new Date(b.created_at) - new Date(a.created_at)
+            );
+        }
+
+        // ============================================
+        // FILTROS Y BÚSQUEDA
+        // ============================================
+        function applyFilters() {
+            const table = document.getElementById('filterTable').value;
+            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateTo = document.getElementById('filterDateTo').value;
+            const searchTerm = document.getElementById('filterSearch').value.toLowerCase();
+
+            let data = table ? cachedData[table] || [] : 
+                      [...cachedData.leads, ...cachedData.historiales, ...cachedData.llamadas];
+
+            // Filtrar por fecha
+            if (dateFrom || dateTo) {
+                data = data.filter(item => {
+                    const itemDate = new Date(item.created_at);
+                    const from = dateFrom ? new Date(dateFrom) : null;
+                    const to = dateTo ? new Date(dateTo) : null;
+
+                    if (from && itemDate < from) return false;
+                    if (to && itemDate > to) return false;
+                    return true;
+                });
+            }
+
+            // Filtrar por búsqueda
+            if (searchTerm) {
+                data = data.filter(item =>
+                    Object.values(item).some(val =>
+                        String(val).toLowerCase().includes(searchTerm)
+                    )
+                );
+            }
+
+            displayTable(data);
+        }
+
+        // ============================================
+        // MOSTRAR DATOS
+        // ============================================
+        function displayTable(data) {
+            const container = document.getElementById('tableContainer');
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="no-data">📭 Sin datos para mostrar</div>';
+                return;
+            }
+
+            let html = '<table><thead><tr>';
+            const keys = Object.keys(data[0]);
+            keys.forEach(key => {
+                html += `<th>${key}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            data.forEach(row => {
+                html += '<tr>';
+                keys.forEach(key => {
+                    let value = row[key];
+                    let displayValue = value;
+
+                    if (key.includes('date') || key.includes('created')) {
+                        displayValue = new Date(value).toLocaleString('es-ES');
+                    } else if (typeof value === 'boolean') {
+                        displayValue = value ? '✅' : '❌';
+                    }
+
+                    html += `<td>${displayValue || '-'}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function updateStats() {
+            const statsDiv = document.getElementById('stats');
+            const totalLeads = cachedData.leads.length;
+            const totalHistoriales = cachedData.historiales.length;
+            const totalLlamadas = cachedData.llamadas.length;
+            const lastSync = getLastSyncDate();
+
+            statsDiv.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${totalLeads}</div>
+                    <div class="stat-label">Leads</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${totalHistoriales}</div>
+                    <div class="stat-label">Historiales</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${totalLlamadas}</div>
+                    <div class="stat-label">Llamadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${totalLeads + totalHistoriales + totalLlamadas}</div>
+                    <div class="stat-label">Total</div>
+                </div>
+            `;
+
+            document.getElementById('syncStatus').innerHTML = 
+                `<strong>📅 Última sincronización:</strong> ${lastSync.toLocaleString('es-ES')}`;
+        }
+
+        function showLoading() {
+            document.getElementById('tableContainer').innerHTML = 
+                '<div class="loading"><div class="spinner"></div>Cargando datos...</div>';
+        }
+
+        // ============================================
+        // UTILIDADES
+        // ============================================
+        function showAlert(type, message) {
+            const alertEl = document.getElementById(`alert${type.charAt(0).toUpperCase() + type.slice(1)}`);
+            alertEl.textContent = message;
+            alertEl.classList.add('show');
+
+            setTimeout(() => alertEl.classList.remove('show'), 5000);
+        }
+
+        function exportToCSV() {
+            const table = document.querySelector('table');
+            if (!table) {
+                showAlert('error', '❌ No hay datos para exportar');
+                return;
+            }
+
+            let csv = [];
+            table.querySelectorAll('tr').forEach(row => {
+                const cols = row.querySelectorAll('td, th');
+                const csvRow = Array.from(cols).map(col => {
+                    const text = col.textContent.replace(/"/g, '""');
+                    return `"${text}"`;
+                }).join(',');
+                csv.push(csvRow);
+            });
+
+            const csvContent = csv.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `reportes_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+
+            showAlert('success', '✅ CSV exportado');
+        }
+
+        function clearAllData() {
+            if (confirm('¿Estás seguro? Se eliminarán todos los datos en caché.')) {
+                cachedData = { leads: [], historiales: [], llamadas: [] };
+                localStorage.removeItem(CACHE_KEY);
+                localStorage.removeItem(LAST_SYNC_KEY);
+                document.getElementById('tableContainer').innerHTML = 
+                    '<div class="no-data">👋 Caché limpiado</div>';
+                updateStats();
+                showAlert('success', '✅ Caché limpiado');
+            }
+        }
+
+        // ============================================
+        // INICIALIZACIÓN
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCredentials();
+            loadCache();
+            updateStats();
+
+            // Filtros automáticos
+            document.getElementById('filterTable').addEventListener('change', applyFilters);
+            document.getElementById('filterDateFrom').addEventListener('change', applyFilters);
+            document.getElementById('filterDateTo').addEventListener('change', applyFilters);
+            document.getElementById('filterSearch').addEventListener('input', applyFilters);
+
+            // Establecer fecha mínima en los inputs de fecha
+            document.getElementById('filterDateFrom').value = '2024-07-01';
+        });
+    </script>
+</body>
+</html>
