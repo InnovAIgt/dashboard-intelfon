@@ -113,7 +113,7 @@
         <table id="tabla-datos" class="w-full text-left text-sm text-slate-300">
           <thead class="bg-slate-800 text-slate-400 uppercase text-xs sticky top-0 border-b border-slate-700">
             <tr id="tabla-head">
-              <th class="p-3">Selecciona una tabla para comenzar</th>
+              <th class="p-3">Estado</th>
             </tr>
           </thead>
           <tbody id="tabla-body" class="divide-y divide-slate-800 bg-slate-900/50">
@@ -127,40 +127,37 @@
 
   </div>
 
-  <!-- SCRIPT LÓGICO DEL DASHBOARD -->
+  <!-- SCRIPT LÓGICO Y CONEXIÓN A SUPABASE -->
   <script>
-    let supabaseClient = null;
     let datosLocales = [];
 
-    // Inicializar cliente Supabase
-    function initSupabase() {
+    // Obtener siempre una instancia limpia del cliente de Supabase
+    function getSupabaseClient() {
       const url = document.getElementById('supabase-url').value.trim();
       const key = document.getElementById('supabase-key').value.trim();
-      if (url && key) {
-        supabaseClient = supabase.createClient(url, key);
-      }
+      if (!url || !key) return null;
+      return supabase.createClient(url, key);
     }
 
-    // Al cargar la vista
+    // Inicialización al cargar el DOM
     window.addEventListener('DOMContentLoaded', () => {
-      // Establecer fechas por defecto (Mes actual)
       const hoy = new Date().toISOString().split('T')[0];
       document.getElementById('fecha-desde').value = '2026-07-01';
       document.getElementById('fecha-hasta').value = hoy;
 
-      initSupabase();
-      cargarTotales();
       cargarDatosBD();
     });
 
-    // Cargar tarjetas superiores
+    // 1. Obtener los totales exactos para las métricas superiores
     async function cargarTotales() {
-      if (!supabaseClient) initSupabase();
+      const client = getSupabaseClient();
+      if (!client) return;
+
       try {
         const [{ count: lCount }, { count: hCount }, { count: llCount }] = await Promise.all([
-          supabaseClient.from('leads').select('*', { count: 'exact', head: true }),
-          supabaseClient.from('historiales').select('*', { count: 'exact', head: true }),
-          supabaseClient.from('llamadas').select('*', { count: 'exact', head: true })
+          client.from('leads').select('*', { count: 'exact', head: true }),
+          client.from('historiales').select('*', { count: 'exact', head: true }),
+          client.from('llamadas').select('*', { count: 'exact', head: true })
         ]);
 
         const totalL = lCount || 0;
@@ -172,95 +169,98 @@
         document.getElementById('card-llamadas').innerText = totalLL;
         document.getElementById('card-total').innerText = totalL + totalH + totalLL;
       } catch (e) {
-        console.error("Error al cargar tarjetas:", e);
+        console.error("Error cargando contadores:", e);
       }
     }
 
-    // Campo de fecha correspondiente a cada tabla
-    function getCampoFecha(tabla) {
-      switch (tabla) {
-        case 'leads': return 'fecha_creado';
-        case 'historiales': return 'fecha';
-        case 'llamadas': return 'fecha';
-        default: return 'created_at';
-      }
-    }
-
-    // Consulta principal
+    // 2. Consulta de registros en la Base de Datos
     async function cargarDatosBD() {
-      if (!supabaseClient) initSupabase();
-      
-      const tabla = document.getElementById('select-tabla').value;
-      const desde = document.getElementById('fecha-desde').value;
-      const hasta = document.getElementById('fecha-hasta').value;
-      const campoFecha = getCampoFecha(tabla);
-
-      let query = supabaseClient.from(tabla).select('*');
-
-      if (desde) query = query.gte(campoFecha, desde);
-      if (hasta) query = query.lte(campoFecha, hasta);
-
-      let { data, error } = await query.order('created_at', { ascending: false }).limit(300);
-
-      // Si no encuentra nada por el filtro estricto de fecha, carga los últimos 100 registros generales
-      if (error || !data || data.length === 0) {
-        const fallback = await supabaseClient.from(tabla).select('*').limit(100);
-        data = fallback.data || [];
+      const client = getSupabaseClient();
+      if (!client) {
+        mostrarAlerta("Completa las credenciales de Supabase para continuar.", "rose");
+        return;
       }
 
-      datosLocales = data;
+      const tabla = document.getElementById('select-tabla').value;
+      
+      // Consultar la tabla activa
+      let { data, error } = await client.from(tabla).select('*').limit(300);
+
+      if (error) {
+        console.error(`Error consultando la tabla ${tabla}:`, error);
+        mostrarAlerta(`Error consultando ${tabla}: ${error.message}`, "rose");
+        renderizarTabla([]);
+        return;
+      }
+
+      datosLocales = data || [];
       renderizarTabla(datosLocales);
       cargarTotales();
     }
 
-    // Dibujar la tabla dinámicamente con las columnas encontradas
+    // 3. Renderizado dinámico de la tabla
     function renderizarTabla(lista) {
       const thead = document.getElementById('tabla-head');
       const tbody = document.getElementById('tabla-body');
 
       if (!lista || lista.length === 0) {
         thead.innerHTML = '<th class="p-3">Resultado</th>';
-        tbody.innerHTML = '<tr><td class="p-4 text-center text-slate-500">No hay registros para mostrar.</td></tr>';
+        tbody.innerHTML = '<tr><td class="p-4 text-center text-slate-500">No hay registros cargados para mostrar.</td></tr>';
         return;
       }
 
-      // Generar Encabezados dinámicos omitiendo campos muy extensos en vista rápida
+      // Detectar columnas excluyendo transcripciones extensas en vista rápida
       const columnas = Object.keys(lista[0]).filter(c => c !== 'transcripcion');
       thead.innerHTML = columnas.map(col => `<th class="p-3 font-semibold">${col.replace('_', ' ')}</th>`).join('');
 
-      // Generar Filas
+      // Construir filas
       tbody.innerHTML = lista.map(row => {
-        return `<tr class="hover:bg-slate-800/60 transition">
-          ${columnas.map(col => `<td class="p-3 text-xs max-w-xs truncate">${row[col] !== null ? row[col] : '-'}</td>`).join('')}
+        return `<tr class="hover:bg-slate-800/60 transition border-b border-slate-800/40">
+          ${columnas.map(col => `<td class="p-3 text-xs max-w-xs truncate text-slate-300">${row[col] !== null && row[col] !== undefined ? row[col] : '-'}</td>`).join('')}
         </tr>`;
       }).join('');
     }
 
-    // Disparar la Edge Function para sincronizar desde APIs externas
+    // 4. Invocar Edge Function con cabeceras de autorización autenticadas
     async function sincronizarAPIExterna() {
-      mostrarAlerta("Ejecutando Edge Function en Supabase...", "cyan");
+      const url = document.getElementById('supabase-url').value.trim();
+      const key = document.getElementById('supabase-key').value.trim();
+
+      if (!url || !key) {
+        mostrarAlerta("Ingresa las credenciales de Supabase.", "rose");
+        return;
+      }
+
+      mostrarAlerta("Ejecutando sincronización de APIs externas...", "cyan");
+
       try {
-        const res = await fetch("https://sbopifiyezmvsadwkpg.supabase.co/functions/v1/sincronizar-datos", {
+        const functionUrl = `${url}/functions/v1/sincronizar-datos`;
+        const res = await fetch(functionUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" }
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${key}`,
+            "apikey": key
+          }
         });
+
         const result = await res.json();
 
-        if (result.success) {
-          mostrarAlerta("¡Sincronización completada desde API Externa!", "emerald");
+        if (res.ok && result.success) {
+          mostrarAlerta("¡Sincronización de APIs finalizada con éxito!", "emerald");
           await cargarDatosBD();
         } else {
-          mostrarAlerta("Ocurrió un error al sincronizar: " + result.error, "rose");
+          mostrarAlerta("Error en la Edge Function: " + (result.error || result.message || "Error desconocido"), "rose");
         }
       } catch (err) {
-        mostrarAlerta("Error al conectar con la Edge Function", "rose");
-        console.error(err);
+        console.error("Error al conectar con la Edge Function:", err);
+        mostrarAlerta("Error al conectar con la Edge Function. Revisa la consola F12.", "rose");
       }
     }
 
-    // Buscador sobre los datos descargados
+    // 5. Filtro de búsqueda en tiempo real sobre los datos descargados
     function filtrarEnFront() {
-      const q = document.getElementById('input-buscar').value.toLowerCase();
+      const q = document.getElementById('input-buscar').value.toLowerCase().trim();
       if (!q) {
         renderizarTabla(datosLocales);
         return;
@@ -271,10 +271,10 @@
       renderizarTabla(filtrados);
     }
 
-    // Exportar la tabla activa a CSV
+    // 6. Exportador a archivo CSV
     function exportarCSV() {
       if (!datosLocales || datosLocales.length === 0) {
-        alert("No hay datos para exportar");
+        alert("No hay registros disponibles para exportar.");
         return;
       }
 
@@ -287,16 +287,15 @@
       ];
 
       const blob = new Blob([lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = URL.createObjectURL(blob);
       link.setAttribute('download', `${document.getElementById('select-tabla').value}_reporte.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
 
-    // Utilidades UI
+    // Funciones auxiliares de UI
     function toggleKeyVisibility() {
       const input = document.getElementById('supabase-key');
       input.type = input.type === 'password' ? 'text' : 'password';
@@ -312,7 +311,7 @@
       banner.innerText = msg;
       banner.className = `p-4 rounded-lg font-medium transition-all border bg-${color}-600/20 border-${color}-500 text-${color}-300`;
       banner.classList.remove('hidden');
-      setTimeout(() => banner.classList.add('hidden'), 4000);
+      setTimeout(() => banner.classList.add('hidden'), 5000);
     }
   </script>
 </body>
