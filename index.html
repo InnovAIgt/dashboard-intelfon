@@ -3,429 +3,317 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard RED Intelfon - Reportes</title>
+  <title>Dashboard Intelfon - Reportes</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    :root {
-      --bg-color: #7062bf;
-      --card-bg: #ffffff;
-      --primary: #5c4eb0;
-      --accent: #28a745;
-      --danger: #dc3545;
-      --text: #333333;
-    }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--bg-color);
-      margin: 0;
-      padding: 20px;
-      color: var(--text);
-    }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    header {
-      text-align: center;
-      color: white;
-      margin-bottom: 25px;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 2.2rem;
-    }
-    header p {
-      margin-top: 5px;
-      opacity: 0.9;
-    }
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-    .stat-card {
-      background: rgba(255, 255, 255, 0.2);
-      backdrop-filter: blur(5px);
-      border-radius: 10px;
-      padding: 20px;
-      text-align: center;
-      color: white;
-    }
-    .stat-card h3 {
-      margin: 0;
-      font-size: 2.5rem;
-    }
-    .stat-card p {
-      margin: 5px 0 0;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 25px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    .card h2 {
-      margin-top: 0;
-      font-size: 1.3rem;
-      color: var(--primary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      font-weight: 600;
-      font-size: 0.85rem;
-      margin-bottom: 5px;
-    }
-    input, select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      box-sizing: border-box;
-      font-size: 0.95rem;
-    }
-    .btn-group {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 15px;
-    }
-    button {
-      padding: 10px 18px;
-      border: none;
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-    }
-    button:active {
-      transform: scale(0.98);
-    }
-    .btn-primary { background: #5c4eb0; color: white; }
-    .btn-success { background: #00b894; color: white; }
-    .btn-secondary { background: #e0e0e0; color: #333; }
-    .btn-danger { background: #ff7675; color: white; }
-    .btn-sync { background: #00cec9; color: white; }
-    .alert {
-      padding: 12px 15px;
-      border-radius: 6px;
-      margin-bottom: 15px;
-      display: none;
-    }
-    .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-    .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-    .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-      font-size: 0.9rem;
-    }
-    th, td {
-      padding: 10px;
-      text-align: left;
-      border-bottom: 1px solid #eee;
-    }
-    th {
-      background-color: #f8f9fa;
-      color: var(--primary);
-    }
-    .table-container {
-      overflow-x: auto;
-    }
-  </style>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
 
-<div class="container">
-  <header>
-    <h1>📊 Dashboard RED Intelfon</h1>
-    <p>Gestión de Reportes y Sincronización de Datos</p>
-  </header>
+  <div class="max-w-7xl mx-auto space-y-6">
 
-  <div id="alertBox" class="alert"></div>
+    <!-- Mensaje de Notificación -->
+    <div id="alert-banner" class="hidden p-4 rounded-lg bg-emerald-600/20 border border-emerald-500 text-emerald-300 font-medium transition-all">
+      ¡Operación realizada exitosamente!
+    </div>
 
-  <!-- Tarjetas de Estadísticas -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <h3 id="cntLeads">0</h3>
-      <p>Leads</p>
-    </div>
-    <div class="stat-card">
-      <h3 id="cntHistoriales">0</h3>
-      <p>Historiales</p>
-    </div>
-    <div class="stat-card">
-      <h3 id="cntLlamadas">0</h3>
-      <p>Llamadas</p>
-    </div>
-    <div class="stat-card">
-      <h3 id="cntTotal">0</h3>
-      <p>Total</p>
-    </div>
-  </div>
-
-  <!-- Configuración Supabase -->
-  <div class="card">
-    <h2>⚙️ Configuración</h2>
-    <div class="form-group">
-      <label>URL de Supabase</label>
-      <input type="text" id="supabaseUrl" placeholder="https://xxxx.supabase.co">
-    </div>
-    <div class="form-group">
-      <label>Anon Key de Supabase</label>
-      <input type="password" id="supabaseKey" placeholder="eyJhbGci...">
-    </div>
-    <div class="btn-group">
-      <button class="btn-secondary" onclick="toggleKeys()">👁️ Mostrar/Ocultar Credenciales</button>
-      <button class="btn-secondary" onclick="limpiarCredenciales()">🗑️ Limpiar Credenciales</button>
-    </div>
-  </div>
-
-  <!-- Filtros y Acciones -->
-  <div class="card">
-    <h2>📋 Filtros y Acciones</h2>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
-      <div class="form-group">
-        <label>Tabla</label>
-        <select id="selTabla">
-          <option value="todas">Todas las tablas</option>
-          <option value="leads">Leads</option>
-          <option value="historiales">Historiales</option>
-          <option value="llamadas">Llamadas</option>
-        </select>
+    <!-- TARJETAS DE MÉTRICAS -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Leads</p>
+        <h3 id="card-leads" class="text-3xl font-extrabold text-indigo-400 mt-2">0</h3>
       </div>
-      <div class="form-group">
-        <label>Desde</label>
-        <input type="date" id="fDesde">
+      <div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Historiales</p>
+        <h3 id="card-historiales" class="text-3xl font-extrabold text-blue-400 mt-2">0</h3>
       </div>
-      <div class="form-group">
-        <label>Hasta</label>
-        <input type="date" id="fHasta">
+      <div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Llamadas</p>
+        <h3 id="card-llamadas" class="text-3xl font-extrabold text-cyan-400 mt-2">0</h3>
       </div>
-      <div class="form-group">
-        <label>Buscar</label>
-        <input type="text" id="txtBuscar" placeholder="Buscar por cualquier campo...">
+      <div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total General</p>
+        <h3 id="card-total" class="text-3xl font-extrabold text-emerald-400 mt-2">0</h3>
       </div>
     </div>
 
-    <div class="btn-group">
-      <button class="btn-primary" onclick="cargarTodo()">🔄 Cargar BD (Supabase)</button>
-      <button class="btn-sync" onclick="sincronizarEdgeFunction()">⚡ Sincronizar desde API Externa</button>
-      <button class="btn-secondary" onclick="aplicarFiltros()">🔍 Aplicar Filtros</button>
-      <button class="btn-success" onclick="exportarCSV()">📥 Exportar CSV</button>
+    <!-- SECCIÓN DE CONFIGURACIÓN DE CREDENCIALES -->
+    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-6 shadow-lg">
+      <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2 mb-4">
+        ⚙️ Configuración
+      </h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">URL de Supabase</label>
+          <input type="text" id="supabase-url" value="https://sbopifiyezmvsadwkpg.supabase.co" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Anon Key de Supabase</label>
+          <input type="password" id="supabase-key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib3BpZml5ZXptdnNhZHdrcGciLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczODE3NTI1OSwiZXhwIjoyMDUzNzUxMjU5fQ.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib3BpZml5ZXptdnNhZHdrcGciLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczODE3NTI1OSwiZXhwIjoyMDUzNzUxMjU5fQ" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="toggleKeyVisibility()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-medium transition">👁️ Mostrar/Ocultar Credenciales</button>
+          <button onclick="limpiarCredenciales()" class="px-3 py-1.5 bg-rose-900/40 border border-rose-700/50 hover:bg-rose-800/50 text-rose-300 rounded-lg text-xs font-medium transition">🗑️ Limpiar Credenciales</button>
+        </div>
+      </div>
     </div>
+
+    <!-- FILTROS Y ACCIONES -->
+    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-6 shadow-lg">
+      <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2 mb-4">
+        📋 Filtros y Acciones
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Tabla</label>
+          <select id="select-tabla" onchange="cargarDatosBD()" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+            <option value="leads">Leads</option>
+            <option value="historiales">Historiales</option>
+            <option value="llamadas">Llamadas</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Desde</label>
+          <input type="date" id="fecha-desde" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Hasta</label>
+          <input type="date" id="fecha-hasta" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Buscar</label>
+          <input type="text" id="input-buscar" oninput="filtrarEnFront()" placeholder="Buscar por cualquier campo..." class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <!-- BOTONES DE ACCIÓN -->
+      <div class="flex flex-wrap gap-3">
+        <button onclick="cargarDatosBD()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold shadow-md transition flex items-center gap-2">
+          💾 Cargar BD (Supabase)
+        </button>
+        <button onclick="sincronizarAPIExterna()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-semibold shadow-md transition flex items-center gap-2">
+          ⚡ Sincronizar desde API Externa
+        </button>
+        <button onclick="cargarDatosBD()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+          🔍 Aplicar Filtros
+        </button>
+        <button onclick="exportarCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold shadow-md transition flex items-center gap-2">
+          📥 Exportar CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- TABLA DE RESULTADOS -->
+    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-6 shadow-lg">
+      <h2 class="text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
+        📁 Datos Registrados
+      </h2>
+      <div class="overflow-x-auto rounded-lg border border-slate-700/60 max-h-[500px]">
+        <table id="tabla-datos" class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-800 text-slate-400 uppercase text-xs sticky top-0 border-b border-slate-700">
+            <tr id="tabla-head">
+              <th class="p-3">Selecciona una tabla para comenzar</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body" class="divide-y divide-slate-800 bg-slate-900/50">
+            <tr>
+              <td class="p-4 text-center text-slate-500">Cargando registros...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
-  <!-- Visualización de Datos -->
-  <div class="card">
-    <h2>📂 Datos Registrados</h2>
-    <div class="table-container">
-      <table id="tablaDatos">
-        <thead>
-          <tr id="headersTabla">
-            <th>Selecciona una tabla o presiona Cargar BD</th>
-          </tr>
-        </thead>
-        <tbody id="bodyTabla">
-          <tr><td>No hay datos cargados aún.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+  <!-- SCRIPT LÓGICO DEL DASHBOARD -->
+  <script>
+    let supabaseClient = null;
+    let datosLocales = [];
 
-<script>
-  let supabaseClient = null;
-  let datosCargados = { leads: [], historiales: [], llamadas: [] };
-
-  window.onload = () => {
-    const savedUrl = localStorage.getItem('sb_url');
-    const savedKey = localStorage.getItem('sb_key');
-    if (savedUrl) document.getElementById('supabaseUrl').value = savedUrl;
-    if (savedKey) document.getElementById('supabaseKey').value = savedKey;
-    if (savedUrl && savedKey) initSupabase(savedUrl, savedKey);
-  };
-
-  function showAlert(msg, type = 'info') {
-    const box = document.getElementById('alertBox');
-    box.className = `alert alert-${type}`;
-    box.innerText = msg;
-    box.style.display = 'block';
-  }
-
-  function initSupabase(url, key) {
-    try {
-      supabaseClient = supabase.createClient(url, key);
-      localStorage.setItem('sb_url', url);
-      localStorage.setItem('sb_key', key);
-      return true;
-    } catch (e) {
-      showAlert('Error inicializando Supabase: ' + e.message, 'danger');
-      return false;
-    }
-  }
-
-  function getCreds() {
-    const url = document.getElementById('supabaseUrl').value.trim();
-    const key = document.getElementById('supabaseKey').value.trim();
-    if (!url || !key) {
-      showAlert('Por favor ingresa la URL y la Anon Key de Supabase', 'danger');
-      return null;
-    }
-    if (!supabaseClient) initSupabase(url, key);
-    return { url, key };
-  }
-
-  function toggleKeys() {
-    const input = document.getElementById('supabaseKey');
-    input.type = input.type === 'password' ? 'text' : 'password';
-  }
-
-  function limpiarCredenciales() {
-    localStorage.removeItem('sb_url');
-    localStorage.removeItem('sb_key');
-    document.getElementById('supabaseUrl').value = '';
-    document.getElementById('supabaseKey').value = '';
-    supabaseClient = null;
-    showAlert('Credenciales borradas de la memoria local', 'info');
-  }
-
-  async function cargarTodo() {
-    const creds = getCreds();
-    if (!creds) return;
-
-    showAlert('Cargando registros desde Supabase...', 'info');
-
-    try {
-      const [rLeads, rHist, rLlam] = await Promise.all([
-        supabaseClient.from('leads').select('*'),
-        supabaseClient.from('historiales').select('*'),
-        supabaseClient.from('llamadas').select('*')
-      ]);
-
-      datosCargados.leads = rLeads.data || [];
-      datosCargados.historiales = rHist.data || [];
-      datosCargados.llamadas = rLlam.data || [];
-
-      document.getElementById('cntLeads').innerText = datosCargados.leads.length;
-      document.getElementById('cntHistoriales').innerText = datosCargados.historiales.length;
-      document.getElementById('cntLlamadas').innerText = datosCargados.llamadas.length;
-      document.getElementById('cntTotal').innerText = 
-        datosCargados.leads.length + datosCargados.historiales.length + datosCargados.llamadas.length;
-
-      renderTabla();
-      showAlert('¡Datos actualizados desde Supabase correctamente!', 'success');
-    } catch (err) {
-      showAlert('Error al consultar Supabase: ' + err.message, 'danger');
-    }
-  }
-
-  async function sincronizarEdgeFunction() {
-    const creds = getCreds();
-    if (!creds) return;
-
-    const endpoint = `${creds.url}/functions/v1/sincronizar-datos`;
-    showAlert('Ejecutando Edge Function para consultar API externa...', 'info');
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${creds.key}`
-        }
-      });
-
-      const res = await response.json();
-      if (res.success) {
-        showAlert('¡Sincronización con la API exitosa! Cargando datos...', 'success');
-        cargarTodo();
-      } else {
-        showAlert('Error devuelto por la Edge Function: ' + (res.error || res.message), 'danger');
+    // Inicializar cliente Supabase
+    function initSupabase() {
+      const url = document.getElementById('supabase-url').value.trim();
+      const key = document.getElementById('supabase-key').value.trim();
+      if (url && key) {
+        supabaseClient = supabase.createClient(url, key);
       }
-    } catch (err) {
-      showAlert('Error llamando a la Edge Function: ' + err.message, 'danger');
-    }
-  }
-
-  function renderTabla() {
-    const sel = document.getElementById('selTabla').value;
-    const body = document.getElementById('bodyTabla');
-    const headers = document.getElementById('headersTabla');
-    body.innerHTML = '';
-    headers.innerHTML = '';
-
-    let lista = [];
-    if (sel === 'leads') lista = datosCargados.leads;
-    else if (sel === 'historiales') lista = datosCargados.historiales;
-    else if (sel === 'llamadas') lista = datosCargados.llamadas;
-    else lista = [...datosCargados.leads, ...datosCargados.historiales, ...datosCargados.llamadas];
-
-    if (lista.length === 0) {
-      headers.innerHTML = '<th>Resultado</th>';
-      body.innerHTML = '<tr><td>No hay registros para mostrar.</td></tr>';
-      return;
     }
 
-    const keys = Object.keys(lista[0]);
-    keys.forEach(k => {
-      const th = document.createElement('th');
-      th.innerText = k;
-      headers.appendChild(th);
+    // Al cargar la vista
+    window.addEventListener('DOMContentLoaded', () => {
+      // Establecer fechas por defecto (Mes actual)
+      const hoy = new Date().toISOString().split('T')[0];
+      document.getElementById('fecha-desde').value = '2026-07-01';
+      document.getElementById('fecha-hasta').value = hoy;
+
+      initSupabase();
+      cargarTotales();
+      cargarDatosBD();
     });
 
-    lista.forEach(row => {
-      const tr = document.createElement('tr');
-      keys.forEach(k => {
-        const td = document.createElement('td');
-        td.innerText = typeof row[k] === 'object' ? JSON.stringify(row[k]) : (row[k] ?? '');
-        tr.appendChild(td);
-      });
-      body.appendChild(tr);
-    });
-  }
+    // Cargar tarjetas superiores
+    async function cargarTotales() {
+      if (!supabaseClient) initSupabase();
+      try {
+        const [{ count: lCount }, { count: hCount }, { count: llCount }] = await Promise.all([
+          supabaseClient.from('leads').select('*', { count: 'exact', head: true }),
+          supabaseClient.from('historiales').select('*', { count: 'exact', head: true }),
+          supabaseClient.from('llamadas').select('*', { count: 'exact', head: true })
+        ]);
 
-  function aplicarFiltros() {
-    renderTabla();
-  }
+        const totalL = lCount || 0;
+        const totalH = hCount || 0;
+        const totalLL = llCount || 0;
 
-  function exportarCSV() {
-    const sel = document.getElementById('selTabla').value;
-    let lista = [];
-    if (sel === 'leads') lista = datosCargados.leads;
-    else if (sel === 'historiales') lista = datosCargados.historiales;
-    else if (sel === 'llamadas') lista = datosCargados.llamadas;
-    else lista = [...datosCargados.leads, ...datosCargados.historiales, ...datosCargados.llamadas];
-
-    if (lista.length === 0) {
-      alert('No hay datos para exportar');
-      return;
+        document.getElementById('card-leads').innerText = totalL;
+        document.getElementById('card-historiales').innerText = totalH;
+        document.getElementById('card-llamadas').innerText = totalLL;
+        document.getElementById('card-total').innerText = totalL + totalH + totalLL;
+      } catch (e) {
+        console.error("Error al cargar tarjetas:", e);
+      }
     }
 
-    const keys = Object.keys(lista[0]);
-    let csv = keys.join(',') + '\n';
-    lista.forEach(row => {
-      csv += keys.map(k => `"${(row[k] ?? '').toString().replace(/"/g, '""')}"`).join(',') + '\n';
-    });
+    // Campo de fecha correspondiente a cada tabla
+    function getCampoFecha(tabla) {
+      switch (tabla) {
+        case 'leads': return 'fecha_creado';
+        case 'historiales': return 'fecha';
+        case 'llamadas': return 'fecha';
+        default: return 'created_at';
+      }
+    }
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reporte_${sel}_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-  }
-</script>
+    // Consulta principal
+    async function cargarDatosBD() {
+      if (!supabaseClient) initSupabase();
+      
+      const tabla = document.getElementById('select-tabla').value;
+      const desde = document.getElementById('fecha-desde').value;
+      const hasta = document.getElementById('fecha-hasta').value;
+      const campoFecha = getCampoFecha(tabla);
+
+      let query = supabaseClient.from(tabla).select('*');
+
+      if (desde) query = query.gte(campoFecha, desde);
+      if (hasta) query = query.lte(campoFecha, hasta);
+
+      let { data, error } = await query.order('created_at', { ascending: false }).limit(300);
+
+      // Si no encuentra nada por el filtro estricto de fecha, carga los últimos 100 registros generales
+      if (error || !data || data.length === 0) {
+        const fallback = await supabaseClient.from(tabla).select('*').limit(100);
+        data = fallback.data || [];
+      }
+
+      datosLocales = data;
+      renderizarTabla(datosLocales);
+      cargarTotales();
+    }
+
+    // Dibujar la tabla dinámicamente con las columnas encontradas
+    function renderizarTabla(lista) {
+      const thead = document.getElementById('tabla-head');
+      const tbody = document.getElementById('tabla-body');
+
+      if (!lista || lista.length === 0) {
+        thead.innerHTML = '<th class="p-3">Resultado</th>';
+        tbody.innerHTML = '<tr><td class="p-4 text-center text-slate-500">No hay registros para mostrar.</td></tr>';
+        return;
+      }
+
+      // Generar Encabezados dinámicos omitiendo campos muy extensos en vista rápida
+      const columnas = Object.keys(lista[0]).filter(c => c !== 'transcripcion');
+      thead.innerHTML = columnas.map(col => `<th class="p-3 font-semibold">${col.replace('_', ' ')}</th>`).join('');
+
+      // Generar Filas
+      tbody.innerHTML = lista.map(row => {
+        return `<tr class="hover:bg-slate-800/60 transition">
+          ${columnas.map(col => `<td class="p-3 text-xs max-w-xs truncate">${row[col] !== null ? row[col] : '-'}</td>`).join('')}
+        </tr>`;
+      }).join('');
+    }
+
+    // Disparar la Edge Function para sincronizar desde APIs externas
+    async function sincronizarAPIExterna() {
+      mostrarAlerta("Ejecutando Edge Function en Supabase...", "cyan");
+      try {
+        const res = await fetch("https://sbopifiyezmvsadwkpg.supabase.co/functions/v1/sincronizar-datos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          mostrarAlerta("¡Sincronización completada desde API Externa!", "emerald");
+          await cargarDatosBD();
+        } else {
+          mostrarAlerta("Ocurrió un error al sincronizar: " + result.error, "rose");
+        }
+      } catch (err) {
+        mostrarAlerta("Error al conectar con la Edge Function", "rose");
+        console.error(err);
+      }
+    }
+
+    // Buscador sobre los datos descargados
+    function filtrarEnFront() {
+      const q = document.getElementById('input-buscar').value.toLowerCase();
+      if (!q) {
+        renderizarTabla(datosLocales);
+        return;
+      }
+      const filtrados = datosLocales.filter(row => 
+        Object.values(row).some(v => String(v).toLowerCase().includes(q))
+      );
+      renderizarTabla(filtrados);
+    }
+
+    // Exportar la tabla activa a CSV
+    function exportarCSV() {
+      if (!datosLocales || datosLocales.length === 0) {
+        alert("No hay datos para exportar");
+        return;
+      }
+
+      const columnas = Object.keys(datosLocales[0]);
+      const lineas = [
+        columnas.join(','),
+        ...datosLocales.map(row => 
+          columnas.map(c => `"${String(row[c] ?? '').replace(/"/g, '""')}"`).join(',')
+        )
+      ];
+
+      const blob = new Blob([lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${document.getElementById('select-tabla').value}_reporte.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Utilidades UI
+    function toggleKeyVisibility() {
+      const input = document.getElementById('supabase-key');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function limpiarCredenciales() {
+      document.getElementById('supabase-url').value = '';
+      document.getElementById('supabase-key').value = '';
+    }
+
+    function mostrarAlerta(msg, color) {
+      const banner = document.getElementById('alert-banner');
+      banner.innerText = msg;
+      banner.className = `p-4 rounded-lg font-medium transition-all border bg-${color}-600/20 border-${color}-500 text-${color}-300`;
+      banner.classList.remove('hidden');
+      setTimeout(() => banner.classList.add('hidden'), 4000);
+    }
+  </script>
 </body>
 </html>
