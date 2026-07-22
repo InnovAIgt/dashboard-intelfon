@@ -3,122 +3,121 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Intelfon - Reportes</title>
-  <!-- Tailwind CSS -->
+  <title>Dashboard IntelFon - InnovaIGT</title>
+  <!-- Tailwind CSS para los estilos oscuros -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase JS Client -->
+  <!-- SDK Oficial de Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { background-color: #0b1120; color: #f3f4f6; }
+    input, select { background-color: #1e293b; color: #ffffff; border: 1px solid #334155; }
+    th { background-color: #1e293b; color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+    td { border-bottom: 1px solid #1e293b; }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
+<body class="p-6 font-sans">
 
-  <div class="max-w-7xl mx-auto space-y-6">
-
-    <!-- Mensaje de Notificación -->
-    <div id="alert-banner" class="hidden p-4 rounded-lg bg-emerald-600/20 border border-emerald-500 text-emerald-300 font-medium transition-all">
-      ¡Operación realizada exitosamente!
+  <!-- CONTADORES SUPERIORES -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+      <span class="text-xs text-gray-400 font-bold tracking-wider uppercase">LEADS</span>
+      <div id="cant-leads" class="text-3xl font-extrabold text-cyan-400 mt-1">0</div>
     </div>
-
-    <!-- TARJETAS DE MÉTRICAS -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg">
-        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Leads</p>
-        <h3 id="card-leads" class="text-3xl font-extrabold text-indigo-400 mt-2">0</h3>
-      </div>
-      <div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg">
-        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Historiales</p>
-        <h3 id="card-historiales" class="text-3xl font-extrabold text-blue-400 mt-2">0</h3>
-      </div>
-      <div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg">
-        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Llamadas</p>
-        <h3 id="card-llamadas" class="text-3xl font-extrabold text-cyan-400 mt-2">0</h3>
-      </div>
-      <div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg">
-        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total General</p>
-        <h3 id="card-total" class="text-3xl font-extrabold text-emerald-400 mt-2">0</h3>
-      </div>
+    <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+      <span class="text-xs text-gray-400 font-bold tracking-wider uppercase">HISTORIALES</span>
+      <div id="cant-hist" class="text-3xl font-extrabold text-cyan-400 mt-1">0</div>
     </div>
+    <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+      <span class="text-xs text-gray-400 font-bold tracking-wider uppercase">LLAMADAS</span>
+      <div id="cant-llam" class="text-3xl font-extrabold text-cyan-400 mt-1">0</div>
+    </div>
+    <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+      <span class="text-xs text-gray-400 font-bold tracking-wider uppercase">TOTAL GENERAL</span>
+      <div id="cant-total" class="text-3xl font-extrabold text-emerald-400 mt-1">0</div>
+    </div>
+  </div>
 
-    <!-- SECCIÓN DE CONFIGURACIÓN DE CREDENCIALES -->
-    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-6 shadow-lg">
-      <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2 mb-4">
-        ⚙️ Configuración
-      </h2>
-      <div class="space-y-4">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <!-- PANEL DE CONFIGURACIÓN Y FILTROS -->
+    <div class="space-y-6">
+      <!-- Credenciales -->
+      <div class="bg-[#111827] p-5 rounded-lg border border-gray-800 space-y-3">
+        <h2 class="text-sm font-bold text-gray-300 flex items-center gap-2">⚙️ Configuración</h2>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">URL de Supabase</label>
-          <input type="text" id="supabase-url" value="https://sbopifiyezmvsadwkpg.supabase.co" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+          <label class="block text-xs text-gray-400 mb-1">URL de Supabase</label>
+          <input type="text" id="sb-url" value="https://sbopifiyezmvsadwkpg.supabase.co" class="w-full p-2 text-xs rounded focus:outline-none focus:border-cyan-500">
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Anon Key de Supabase</label>
-          <input type="password" id="supabase-key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib3BpZml5ZXptdnNhZHdrcGciLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczODE3NTI1OSwiZXhwIjoyMDUzNzUxMjU5fQ.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib3BpZml5ZXptdnNhZHdrcGciLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczODE3NTI1OSwiZXhwIjoyMDUzNzUxMjU5fQ" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+          <label class="block text-xs text-gray-400 mb-1">Anon Key de Supabase</label>
+          <input type="password" id="sb-key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib3BpZml5ZXptdnNhZHdrcGciLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczODE3NTI1OSwiZXhwIjoyMDUzNzUxMjU5fQ.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib3BpZml5ZXptdnNhZHdrcGciLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczODE3NTI1OSwiZXhwIjoyMDUzNzUxMjU5fQ" class="w-full p-2 text-xs rounded focus:outline-none focus:border-cyan-500">
         </div>
         <div class="flex gap-2">
-          <button onclick="toggleKeyVisibility()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-medium transition">👁️ Mostrar/Ocultar Credenciales</button>
-          <button onclick="limpiarCredenciales()" class="px-3 py-1.5 bg-rose-900/40 border border-rose-700/50 hover:bg-rose-800/50 text-rose-300 rounded-lg text-xs font-medium transition">🗑️ Limpiar Credenciales</button>
+          <button onclick="toggleKey()" class="bg-gray-800 text-xs px-3 py-1.5 rounded hover:bg-gray-700">👁️ Mostrar/Ocultar Credenciales</button>
         </div>
       </div>
-    </div>
 
-    <!-- FILTROS Y ACCIONES -->
-    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-6 shadow-lg">
-      <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2 mb-4">
-        📋 Filtros y Acciones
-      </h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <!-- Filtros y Acciones -->
+      <div class="bg-[#111827] p-5 rounded-lg border border-gray-800 space-y-4">
+        <h2 class="text-sm font-bold text-gray-300">🎛️ Filtros y Acciones</h2>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Tabla</label>
-          <select id="select-tabla" onchange="cargarDatosBD()" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+          <label class="block text-xs text-gray-400 mb-1">Tabla</label>
+          <select id="select-tabla" class="w-full p-2 text-xs rounded">
+            <option value="llamadas">Llamadas</option>
             <option value="leads">Leads</option>
             <option value="historiales">Historiales</option>
-            <option value="llamadas">Llamadas</option>
           </select>
         </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Desde</label>
-          <input type="date" id="fecha-desde" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Desde</label>
+            <input type="date" id="fecha-desde" class="w-full p-2 text-xs rounded">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Hasta</label>
+            <input type="date" id="fecha-hasta" class="w-full p-2 text-xs rounded">
+          </div>
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Hasta</label>
-          <input type="date" id="fecha-hasta" class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+          <label class="block text-xs text-gray-400 mb-1">Buscar</label>
+          <input type="text" id="input-buscar" placeholder="Buscar por cualquier campo..." class="w-full p-2 text-xs rounded">
         </div>
-        <div>
-          <label class="block text-xs text-slate-400 mb-1">Buscar</label>
-          <input type="text" id="input-buscar" oninput="filtrarEnFront()" placeholder="Buscar por cualquier campo..." class="w-full bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
-        </div>
-      </div>
 
-      <!-- BOTONES DE ACCIÓN -->
-      <div class="flex flex-wrap gap-3">
-        <button onclick="cargarDatosBD()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold shadow-md transition flex items-center gap-2">
-          💾 Cargar BD (Supabase)
-        </button>
-        <button onclick="sincronizarAPIExterna()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-semibold shadow-md transition flex items-center gap-2">
-          ⚡ Sincronizar desde API Externa
-        </button>
-        <button onclick="cargarDatosBD()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm font-semibold transition flex items-center gap-2">
-          🔍 Aplicar Filtros
-        </button>
-        <button onclick="exportarCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold shadow-md transition flex items-center gap-2">
-          📥 Exportar CSV
-        </button>
+        <!-- Botones de Acción -->
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button onclick="cargarDatosBD()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 text-xs rounded flex items-center justify-center gap-1">
+            🗄️ Cargar BD (Supabase)
+          </button>
+          <button onclick="sincronizarAPI()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 text-xs rounded flex items-center justify-center gap-1">
+            ⚡ Sincronizar API
+          </button>
+          <button onclick="aplicarFiltroLocal()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 text-xs rounded">
+            🔍 Aplicar Filtros
+          </button>
+          <button onclick="exportarCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 text-xs rounded">
+            📊 Exportar CSV
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- TABLA DE RESULTADOS -->
-    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-6 shadow-lg">
-      <h2 class="text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
-        📁 Datos Registrados
-      </h2>
-      <div class="overflow-x-auto rounded-lg border border-slate-700/60 max-h-[500px]">
-        <table id="tabla-datos" class="w-full text-left text-sm text-slate-300">
-          <thead class="bg-slate-800 text-slate-400 uppercase text-xs sticky top-0 border-b border-slate-700">
-            <tr id="tabla-head">
-              <th class="p-3">Estado</th>
+    <!-- TABLA DE DATOS -->
+    <div class="lg:col-span-2 bg-[#111827] p-5 rounded-lg border border-gray-800 flex flex-col">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-sm font-bold text-gray-300">📂 Datos Registrados</h2>
+        <span id="estado-cargando" class="text-xs text-cyan-400 hidden">Cargando...</span>
+      </div>
+      
+      <div class="overflow-x-auto flex-1 max-h-[550px] overflow-y-auto">
+        <table id="mi-tabla-html" class="w-full text-left text-xs">
+          <thead id="tabla-head">
+            <tr>
+              <th class="p-3">Selecciona una tabla y presiona "Cargar BD"</th>
             </tr>
           </thead>
-          <tbody id="tabla-body" class="divide-y divide-slate-800 bg-slate-900/50">
+          <tbody id="tabla-body">
             <tr>
-              <td class="p-4 text-center text-slate-500">Cargando registros...</td>
+              <td class="p-4 text-center text-gray-500">No hay datos cargados aún.</td>
             </tr>
           </tbody>
         </table>
@@ -127,192 +126,169 @@
 
   </div>
 
-  <!-- SCRIPT LÓGICO Y CONEXIÓN A SUPABASE -->
+  <!-- LÓGICA JAVASCRIPT -->
   <script>
-    let datosLocales = [];
+    let supabaseClient = null;
+    let datosCache = [];
 
-    // Obtener siempre una instancia limpia del cliente de Supabase
-    function getSupabaseClient() {
-      const url = document.getElementById('supabase-url').value.trim();
-      const key = document.getElementById('supabase-key').value.trim();
-      if (!url || !key) return null;
-      return supabase.createClient(url, key);
+    // Inicializar cliente Supabase
+    function getSupabase() {
+      const url = document.getElementById('sb-url').value.trim();
+      const key = document.getElementById('sb-key').value.trim();
+      if (!supabaseClient) {
+        supabaseClient = window.supabase.createClient(url, key);
+      }
+      return supabaseClient;
     }
 
-    // Inicialización al cargar el DOM
-    window.addEventListener('DOMContentLoaded', () => {
-      const hoy = new Date().toISOString().split('T')[0];
-      document.getElementById('fecha-desde').value = '2026-07-01';
-      document.getElementById('fecha-hasta').value = hoy;
+    // Toggle ocultar/mostrar contraseña
+    function toggleKey() {
+      const input = document.getElementById('sb-key');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
 
-      cargarDatosBD();
-    });
-
-    // 1. Obtener los totales exactos para las métricas superiores
-    async function cargarTotales() {
-      const client = getSupabaseClient();
-      if (!client) return;
+    // 1. Cargar datos desde Supabase
+    async function cargarDatosBD() {
+      const client = getSupabase();
+      const tabla = document.getElementById('select-tabla').value;
+      const estado = document.getElementById('estado-cargando');
+      
+      estado.classList.remove('hidden');
 
       try {
-        const [{ count: lCount }, { count: hCount }, { count: llCount }] = await Promise.all([
-          client.from('leads').select('*', { count: 'exact', head: true }),
-          client.from('historiales').select('*', { count: 'exact', head: true }),
-          client.from('llamadas').select('*', { count: 'exact', head: true })
-        ]);
+        const { data, error } = await client
+          .from(tabla)
+          .select('*')
+          .limit(1000); // Límite inicial ajustable
 
-        const totalL = lCount || 0;
-        const totalH = hCount || 0;
-        const totalLL = llCount || 0;
+        if (error) throw error;
 
-        document.getElementById('card-leads').innerText = totalL;
-        document.getElementById('card-historiales').innerText = totalH;
-        document.getElementById('card-llamadas').innerText = totalLL;
-        document.getElementById('card-total').innerText = totalL + totalH + totalLL;
-      } catch (e) {
-        console.error("Error cargando contadores:", e);
+        datosCache = data || [];
+        renderizarTabla(datosCache);
+        actualizarContadores();
+      } catch (err) {
+        alert("Error cargando Supabase: " + err.message);
+        console.error(err);
+      } finally {
+        estado.classList.add('hidden');
       }
     }
 
-    // 2. Consulta de registros en la Base de Datos
-    async function cargarDatosBD() {
-      const client = getSupabaseClient();
-      if (!client) {
-        mostrarAlerta("Completa las credenciales de Supabase para continuar.", "rose");
-        return;
-      }
-
-      const tabla = document.getElementById('select-tabla').value;
-      
-      // Consultar la tabla activa
-      let { data, error } = await client.from(tabla).select('*').limit(300);
-
-      if (error) {
-        console.error(`Error consultando la tabla ${tabla}:`, error);
-        mostrarAlerta(`Error consultando ${tabla}: ${error.message}`, "rose");
-        renderizarTabla([]);
-        return;
-      }
-
-      datosLocales = data || [];
-      renderizarTabla(datosLocales);
-      cargarTotales();
-    }
-
-    // 3. Renderizado dinámico de la tabla
-    function renderizarTabla(lista) {
+    // 2. Renderizar Tabla Dinámicamente
+    function renderizarTabla(datos) {
       const thead = document.getElementById('tabla-head');
       const tbody = document.getElementById('tabla-body');
 
-      if (!lista || lista.length === 0) {
-        thead.innerHTML = '<th class="p-3">Resultado</th>';
-        tbody.innerHTML = '<tr><td class="p-4 text-center text-slate-500">No hay registros cargados para mostrar.</td></tr>';
+      if (!datos || datos.length === 0) {
+        thead.innerHTML = `<tr><th class="p-3">Sin resultados</th></tr>`;
+        tbody.innerHTML = `<tr><td class="p-4 text-center text-gray-500">No hay registros que mostrar.</td></tr>`;
         return;
       }
 
-      // Detectar columnas excluyendo transcripciones extensas en vista rápida
-      const columnas = Object.keys(lista[0]).filter(c => c !== 'transcripcion');
-      thead.innerHTML = columnas.map(col => `<th class="p-3 font-semibold">${col.replace('_', ' ')}</th>`).join('');
+      // Obtener nombres de columnas dinámicamente
+      const columnas = Object.keys(datos[0]);
 
-      // Construir filas
-      tbody.innerHTML = lista.map(row => {
-        return `<tr class="hover:bg-slate-800/60 transition border-b border-slate-800/40">
-          ${columnas.map(col => `<td class="p-3 text-xs max-w-xs truncate text-slate-300">${row[col] !== null && row[col] !== undefined ? row[col] : '-'}</td>`).join('')}
-        </tr>`;
+      // Generar Encabezados
+      thead.innerHTML = `<tr>${columnas.map(col => `<th class="p-3">${col}</th>`).join('')}</tr>`;
+
+      // Generar Filas (limitado a 100 visibles en DOM para fluidez)
+      tbody.innerHTML = datos.slice(0, 100).map(fila => {
+        return `<tr class="hover:bg-slate-800/50">${columnas.map(col => {
+          let val = fila[col];
+          if (val === null || val === undefined) val = '';
+          return `<td class="p-3 whitespace-nowrap text-gray-300">${val}</td>`;
+        }).join('')}</tr>`;
       }).join('');
     }
 
-    // 4. Invocar Edge Function con cabeceras de autorización autenticadas
-    async function sincronizarAPIExterna() {
-      const url = document.getElementById('supabase-url').value.trim();
-      const key = document.getElementById('supabase-key').value.trim();
+    // 3. Actualizar Contadores Superiores
+    async function actualizarContadores() {
+      const client = getSupabase();
+      
+      const [rLeads, rHist, rLlam] = await Promise.all([
+        client.from('leads').select('*', { count: 'exact', head: true }),
+        client.from('historiales').select('*', { count: 'exact', head: true }),
+        client.from('llamadas').select('*', { count: 'exact', head: true })
+      ]);
 
-      if (!url || !key) {
-        mostrarAlerta("Ingresa las credenciales de Supabase.", "rose");
-        return;
-      }
+      const cL = rLeads.count || 0;
+      const cH = rHist.count || 0;
+      const cLl = rLlam.count || 0;
 
-      mostrarAlerta("Ejecutando sincronización de APIs externas...", "cyan");
+      document.getElementById('cant-leads').innerText = cL.toLocaleString();
+      document.getElementById('cant-hist').innerText = cH.toLocaleString();
+      document.getElementById('cant-llam').innerText = cLl.toLocaleString();
+      document.getElementById('cant-total').innerText = (cL + cH + cLl).toLocaleString();
+    }
+
+    // 4. Sincronizar desde API Externa (Edge Function)
+    async function sincronizarAPI() {
+      const url = document.getElementById('sb-url').value.trim();
+      const key = document.getElementById('sb-key').value.trim();
+      const estado = document.getElementById('estado-cargando');
+
+      estado.innerText = "Sincronizando API...";
+      estado.classList.remove('hidden');
 
       try {
-        const functionUrl = `${url}/functions/v1/sincronizar-datos`;
-        const res = await fetch(functionUrl, {
-          method: "POST",
+        const res = await fetch(`${url}/functions/v1/sincronizar-datos`, {
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${key}`,
-            "apikey": key
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`,
+            'apikey': key
           }
         });
 
-        const result = await res.json();
+        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
 
-        if (res.ok && result.success) {
-          mostrarAlerta("¡Sincronización de APIs finalizada con éxito!", "emerald");
-          await cargarDatosBD();
-        } else {
-          mostrarAlerta("Error en la Edge Function: " + (result.error || result.message || "Error desconocido"), "rose");
-        }
+        alert("¡Sincronización completada con éxito!");
+        await cargarDatosBD();
       } catch (err) {
-        console.error("Error al conectar con la Edge Function:", err);
-        mostrarAlerta("Error al conectar con la Edge Function. Revisa la consola F12.", "rose");
+        alert("Error al sincronizar: " + err.message);
+      } finally {
+        estado.innerText = "Cargando...";
+        estado.classList.add('hidden');
       }
     }
 
-    // 5. Filtro de búsqueda en tiempo real sobre los datos descargados
-    function filtrarEnFront() {
+    // 5. Aplicar Filtro de búsqueda local
+    function aplicarFiltroLocal() {
       const q = document.getElementById('input-buscar').value.toLowerCase().trim();
       if (!q) {
-        renderizarTabla(datosLocales);
+        renderizarTabla(datosCache);
         return;
       }
-      const filtrados = datosLocales.filter(row => 
-        Object.values(row).some(v => String(v).toLowerCase().includes(q))
-      );
+      
+      const filtrados = datosCache.filter(item => {
+        return Object.values(item).some(v => String(v).toLowerCase().includes(q));
+      });
+
       renderizarTabla(filtrados);
     }
 
-    // 6. Exportador a archivo CSV
+    // 6. Exportar a CSV
     function exportarCSV() {
-      if (!datosLocales || datosLocales.length === 0) {
-        alert("No hay registros disponibles para exportar.");
-        return;
-      }
+      if (!datosCache || datosCache.length === 0) return alert("No hay datos para exportar.");
+      
+      const columnas = Object.keys(datosCache[0]);
+      let csvContent = "data:text/csv;charset=utf-8," 
+        + columnas.join(",") + "\n"
+        + datosCache.map(e => columnas.map(c => `"${e[c] !== null ? e[c] : ''}"`).join(",")).join("\n");
 
-      const columnas = Object.keys(datosLocales[0]);
-      const lineas = [
-        columnas.join(','),
-        ...datosLocales.map(row => 
-          columnas.map(c => `"${String(row[c] ?? '').replace(/"/g, '""')}"`).join(',')
-        )
-      ];
-
-      const blob = new Blob([lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `${document.getElementById('select-tabla').value}_reporte.csv`);
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `${document.getElementById('select-tabla').value}_export.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
 
-    // Funciones auxiliares de UI
-    function toggleKeyVisibility() {
-      const input = document.getElementById('supabase-key');
-      input.type = input.type === 'password' ? 'text' : 'password';
-    }
-
-    function limpiarCredenciales() {
-      document.getElementById('supabase-url').value = '';
-      document.getElementById('supabase-key').value = '';
-    }
-
-    function mostrarAlerta(msg, color) {
-      const banner = document.getElementById('alert-banner');
-      banner.innerText = msg;
-      banner.className = `p-4 rounded-lg font-medium transition-all border bg-${color}-600/20 border-${color}-500 text-${color}-300`;
-      banner.classList.remove('hidden');
-      setTimeout(() => banner.classList.add('hidden'), 5000);
-    }
+    // Auto-cargas al iniciar
+    window.addEventListener('DOMContentLoaded', () => {
+      cargarDatosBD();
+    });
   </script>
 </body>
 </html>
