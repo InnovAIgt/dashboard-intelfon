@@ -327,8 +327,8 @@
       const desde = document.getElementById('global-desde')?.value;
       const hasta = document.getElementById('global-hasta')?.value;
       if (!desde && !hasta) return datos;
-      const desdeT = desde ? new Date(desde + 'T00:00:00').getTime() : null;
-      const hastaT = hasta ? new Date(hasta + 'T23:59:59').getTime() : null;
+      const desdeT = desde ? new Date(desde + 'T00:00:00Z').getTime() : null;
+      const hastaT = hasta ? new Date(hasta + 'T23:59:59Z').getTime() : null;
       return datos.filter(item => {
         const raw = item[columnaFecha];
         if (!raw) return false;
