@@ -261,16 +261,39 @@
     }
 
     async function recargarTodoYContadores() {
+      console.log('🔄 [DEBUG] Iniciando recargarTodoYContadores...');
+      
       cargaCompleta = { leads: false, llamadas: false, historiales: false, ejecutivos: false };
       cruceCache = null;
-      await Promise.all([
-        cargarTablaCompleta('leads', 'fecha_agendada'),
-        cargarTablaCompleta('llamadas', 'fecha'),
-        cargarTablaCompleta('historiales', 'fecha'),
-        cargarTablaCompleta('ejecutivos', null)
-      ]);
-      await actualizarContadores();
-      render();
+      
+      try {
+        console.log('📦 [DEBUG] Cargando leads...');
+        await cargarTablaCompleta('leads', 'fecha_agendada');
+        console.log('✅ Leads cargados:', cache.leads.length);
+
+        console.log('📦 [DEBUG] Cargando llamadas...');
+        await cargarTablaCompleta('llamadas', 'fecha');
+        console.log('✅ Llamadas cargadas:', cache.llamadas.length);
+
+        console.log('📦 [DEBUG] Cargando historiales...');
+        await cargarTablaCompleta('historiales', 'fecha');
+        console.log('✅ Historiales cargados:', cache.historiales.length);
+
+        console.log('📦 [DEBUG] Cargando ejecutivos...');
+        await cargarTablaCompleta('ejecutivos', null);
+        console.log('✅ Ejecutivos cargados:', cache.ejecutivos.length);
+
+        console.log('📈 [DEBUG] Actualizando contadores...');
+        await actualizarContadores();
+
+        console.log('🎨 [DEBUG] Re-renderizando...');
+        render();
+        
+        console.log('✨ [DEBUG] ¡Recargar completado!');
+      } catch (err) {
+        console.error('❌ [ERROR]', err);
+        alert('Error al recargar: ' + err.message);
+      }
     }
 
     // ==================================================================
@@ -299,7 +322,6 @@
     // ==================================================================
     // TABLA GENERICA CON FILTRO ESTILO EXCEL (checkboxes por columna)
     // ==================================================================
-    // Aplica el filtro de fecha GLOBAL (barra fija arriba) sobre cualquier arreglo de datos
     function filtrarPorFechaGlobal(datos, columnaFecha) {
       if (!columnaFecha) return datos;
       const desde = document.getElementById('global-desde')?.value;
@@ -346,7 +368,6 @@
       pintarTablaConFiltros('tabla-dinamica', filtrarPorFechaGlobal(cache[tabla], columnaFecha));
     }
 
-    // filtroColState[contId][col] = Set de valores permitidos (undefined = sin filtro / todos)
     let filtroColState = {};
     window.__datosBase = {};
     window.__ultimoFiltrado = {};
@@ -376,7 +397,7 @@
       let filtrados = datosBase.filter(fila => {
         return columnas.every(col => {
           const set = filtros[col];
-          if (!set) return true; // sin filtro = pasa todo
+          if (!set) return true;
           return set.has(valorMostrable(fila[col]));
         });
       });
@@ -403,14 +424,13 @@
       if (contador) { contador.classList.remove('hidden'); contador.innerText = `${filtrados.length.toLocaleString()} de ${datosBase.length.toLocaleString()} registros (mostrando máx. 300 en pantalla; XLSX exporta todo lo filtrado)`; }
     }
 
-    // ---- POPUP DE FILTRO ESTILO EXCEL ----
     let cfpState = null;
 
     function abrirFiltroColumna(contId, col, btnEl) {
       const datosBase = window.__datosBase[contId] || [];
       const valoresUnicos = Array.from(new Set(datosBase.map(f => valorMostrable(f[col])))).sort((a,b)=>a.localeCompare(b));
       const actual = filtroColState[contId][col];
-      const seleccion = actual ? new Set(actual) : new Set(valoresUnicos); // sin filtro = todos marcados
+      const seleccion = actual ? new Set(actual) : new Set(valoresUnicos);
 
       cfpState = { contId, col, valoresUnicos, seleccion };
 
@@ -459,7 +479,7 @@
     function cfpAceptar() {
       const { contId, col, valoresUnicos, seleccion } = cfpState;
       if (seleccion.size === valoresUnicos.length || seleccion.size === 0) {
-        delete filtroColState[contId][col]; // todos o ninguno = sin filtro (evita tabla vacía por error)
+        delete filtroColState[contId][col];
       } else {
         filtroColState[contId][col] = new Set(seleccion);
       }
@@ -518,8 +538,6 @@
     }
 
     async function calcularCruce(forzar) {
-      // Nota: recalculamos siempre (no usamos caché) para que el filtro de fecha
-      // global se refleje al instante al cambiar de vista o presionar "Aplicar".
       await Promise.all([
         asegurarCache('leads', 'fecha_agendada'),
         asegurarCache('llamadas', 'fecha'),
@@ -696,12 +714,7 @@
     }
 
     // ==================================================================
-    // TEAMS: no tenemos fuente real de reuniones Teams en Supabase todavía,
-    // así que se listan los leads con tipo_reunion distinto de "Llamada
-    // Telefonica" (Presencial, Teams/Virtual, etc). Sin una fuente de datos
-    // de Teams, se marcan como "Sin evidencia Teams" (igual que en tu Excel
-    // para la mayoría de filas), salvo que la reunión aún no haya pasado
-    // (=> Pendiente).
+    // TEAMS
     // ==================================================================
     async function calcularTeams(forzar) {
       await asegurarCache('leads', 'fecha_agendada');
