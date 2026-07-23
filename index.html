@@ -4,323 +4,581 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard IntelFon - InnovaIGT</title>
-  <!-- Tailwind CSS para los estilos oscuros -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SDK Oficial de Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     body { background-color: #0b1120; color: #f3f4f6; }
     input, select { background-color: #1e293b; color: #ffffff; border: 1px solid #334155; }
-    th { background-color: #1e293b; color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+    th { background-color: #1e293b; color: #94a3b8; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; white-space: nowrap; }
     td { border-bottom: 1px solid #1e293b; }
+    .sidebar-btn { display:flex; align-items:center; gap:.5rem; width:100%; text-align:left; padding:.6rem .8rem; border-radius:.5rem; font-size:.82rem; color:#cbd5e1; }
+    .sidebar-btn:hover { background:#1e293b; }
+    .sidebar-btn.active { background:#0e7490; color:#fff; font-weight:600; }
+    .sub-btn { display:block; width:100%; text-align:left; padding:.4rem .8rem .4rem 2.2rem; border-radius:.4rem; font-size:.78rem; color:#94a3b8; }
+    .sub-btn:hover { background:#1e293b; color:#fff; }
+    .sub-btn.active { background:#164e63; color:#67e8f9; font-weight:600; }
+    .badge { padding:2px 8px; border-radius:9999px; font-size:.68rem; font-weight:600; white-space:nowrap; }
   </style>
 </head>
-<body class="p-6 font-sans">
+<body class="font-sans">
 
-  <!-- CONTADORES SUPERIORES -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-    <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
-      <span class="text-xs text-gray-400 font-bold tracking-wider uppercase">LEADS</span>
-      <div id="cant-leads" class="text-3xl font-extrabold text-cyan-400 mt-1">0</div>
-    </div>
-    <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
-      <span class="text-xs text-gray-400 font-bold tracking-wider uppercase">HISTORIALES</span>
-      <div id="cant-hist" class="text-3xl font-extrabold text-cyan-400 mt-1">0</div>
-    </div>
-    <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
-      <span class="text-xs text-gray-400 font-bold tracking-wider uppercase">LLAMADAS</span>
-      <div id="cant-llam" class="text-3xl font-extrabold text-cyan-400 mt-1">0</div>
-    </div>
-    <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
-      <span class="text-xs text-gray-400 font-bold tracking-wider uppercase">TOTAL GENERAL</span>
-      <div id="cant-total" class="text-3xl font-extrabold text-emerald-400 mt-1">0</div>
+  <div class="flex h-screen overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-[#0f172a] border-r border-gray-800 flex flex-col shrink-0 overflow-y-auto">
+      <div class="p-4 border-b border-gray-800">
+        <h1 class="text-sm font-bold text-cyan-400">📊 Dashboard IntelFon</h1>
+        <p class="text-[10px] text-gray-500 mt-0.5">InnovaIGT</p>
+      </div>
+      <nav class="p-3 space-y-1 flex-1">
+        <button class="sidebar-btn" data-view="config" onclick="irA('config')">⚙️ <span>Configuración</span></button>
+
+        <button class="sidebar-btn" onclick="toggleSubmenu('submenu-registros')">🗂️ <span>Registros</span> <span class="ml-auto text-xs">▾</span></button>
+        <div id="submenu-registros" class="space-y-0.5">
+          <button class="sub-btn" data-view="reg-pbx" onclick="irA('reg-pbx')">📞 Llamadas PBX</button>
+          <button class="sub-btn" data-view="reg-cel" onclick="irA('reg-cel')">📱 Llamadas Celular</button>
+          <button class="sub-btn" data-view="reg-leads" onclick="irA('reg-leads')">🎯 Leads Calificados</button>
+        </div>
+
+        <button class="sidebar-btn" data-view="catalogo" onclick="irA('catalogo')">📇 <span>Catálogo</span></button>
+
+        <button class="sidebar-btn" onclick="toggleSubmenu('submenu-resumen')">📈 <span>Resumen</span> <span class="ml-auto text-xs">▾</span></button>
+        <div id="submenu-resumen" class="space-y-0.5">
+          <button class="sub-btn" data-view="res-pais" onclick="irA('res-pais')">🌎 Resumen por País</button>
+          <button class="sub-btn" data-view="res-ejecutivo" onclick="irA('res-ejecutivo')">🧑‍💼 Resumen por Ejecutivo</button>
+          <button class="sub-btn" data-view="res-detalle" onclick="irA('res-detalle')">🔍 Detalle del Cruce</button>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+
+      <!-- CONTADORES -->
+      <div class="grid grid-cols-4 gap-3 p-4 border-b border-gray-800 shrink-0">
+        <div class="bg-[#111827] p-3 rounded-lg border border-gray-800">
+          <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">LEADS</span>
+          <div id="cant-leads" class="text-2xl font-extrabold text-cyan-400 mt-1">0</div>
+        </div>
+        <div class="bg-[#111827] p-3 rounded-lg border border-gray-800">
+          <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">LLAMADAS CELULAR</span>
+          <div id="cant-hist" class="text-2xl font-extrabold text-cyan-400 mt-1">0</div>
+        </div>
+        <div class="bg-[#111827] p-3 rounded-lg border border-gray-800">
+          <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">LLAMADAS PBX</span>
+          <div id="cant-llam" class="text-2xl font-extrabold text-cyan-400 mt-1">0</div>
+        </div>
+        <div class="bg-[#111827] p-3 rounded-lg border border-gray-800">
+          <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">TOTAL GENERAL</span>
+          <div id="cant-total" class="text-2xl font-extrabold text-emerald-400 mt-1">0</div>
+        </div>
+      </div>
+
+      <!-- CONTENIDO DINAMICO -->
+      <main id="main-content" class="flex-1 overflow-y-auto p-4">
+        <!-- se llena por JS -->
+      </main>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    
-    <!-- PANEL DE CONFIGURACIÓN Y FILTROS -->
-    <div class="space-y-6">
-      <!-- Credenciales -->
-      <div class="bg-[#111827] p-5 rounded-lg border border-gray-800 space-y-3">
-        <h2 class="text-sm font-bold text-gray-300 flex items-center gap-2">⚙️ Configuración</h2>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">URL de Supabase</label>
-          <input type="text" id="sb-url" value="https://sbopifiiyezmvsadwkpg.supabase.co" class="w-full p-2 text-xs rounded focus:outline-none focus:border-cyan-500">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Anon Key de Supabase</label>
-          <input type="password" id="sb-key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib3BpZmlpeWV6bXZzYWR3a3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MzM0OTYsImV4cCI6MjEwMDMwOTQ5Nn0.ZI5y8lroFF529Xr-Otm1fcq6H2lhbh9e3s-WU9O6I7A" class="w-full p-2 text-xs rounded focus:outline-none focus:border-cyan-500">
-        </div>
-        <div class="flex gap-2">
-          <button onclick="toggleKey()" class="bg-gray-800 text-xs px-3 py-1.5 rounded hover:bg-gray-700">👁️ Mostrar/Ocultar Credenciales</button>
-        </div>
-      </div>
-
-      <!-- Filtros y Acciones -->
-      <div class="bg-[#111827] p-5 rounded-lg border border-gray-800 space-y-4">
-        <h2 class="text-sm font-bold text-gray-300">🎛️ Filtros y Acciones</h2>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Tabla</label>
-          <select id="select-tabla" class="w-full p-2 text-xs rounded">
-            <option value="llamadas">Llamadas</option>
-            <option value="leads">Leads</option>
-            <option value="historiales">Historiales</option>
-          </select>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">Desde</label>
-            <input type="date" id="fecha-desde" class="w-full p-2 text-xs rounded">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">Hasta</label>
-            <input type="date" id="fecha-hasta" class="w-full p-2 text-xs rounded">
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Buscar</label>
-          <input type="text" id="input-buscar" placeholder="Buscar por cualquier campo..." class="w-full p-2 text-xs rounded">
-        </div>
-
-        <!-- Botones de Acción -->
-        <div class="grid grid-cols-2 gap-2 pt-2">
-          <button onclick="cargarDatosBD()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 text-xs rounded flex items-center justify-center gap-1">
-            🗄️ Cargar BD (Supabase)
-          </button>
-          <button onclick="sincronizarAPI()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 text-xs rounded flex items-center justify-center gap-1">
-            ⚡ Sincronizar API
-          </button>
-          <button onclick="aplicarFiltroLocal()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 text-xs rounded">
-            🔍 Aplicar Filtros
-          </button>
-          <button onclick="exportarCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 text-xs rounded">
-            📊 Exportar CSV
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- TABLA DE DATOS -->
-    <div class="lg:col-span-2 bg-[#111827] p-5 rounded-lg border border-gray-800 flex flex-col">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-sm font-bold text-gray-300">📂 Datos Registrados</h2>
-        <span id="estado-cargando" class="text-xs text-cyan-400 hidden">Cargando...</span>
-      </div>
-      
-      <div class="overflow-x-auto flex-1 max-h-[550px] overflow-y-auto">
-        <table id="mi-tabla-html" class="w-full text-left text-xs">
-          <thead id="tabla-head">
-            <tr>
-              <th class="p-3">Selecciona una tabla y presiona "Cargar BD"</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-body">
-            <tr>
-              <td class="p-4 text-center text-gray-500">No hay datos cargados aún.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- LÓGICA JAVASCRIPT -->
   <script>
+    // ------------------------------------------------------------------
+    // ESTADO GLOBAL
+    // ------------------------------------------------------------------
     let supabaseClient = null;
-    let datosCache = [];
+    let cache = { leads: [], llamadas: [], historiales: [], ejecutivos: [] };
+    let cargaCompleta = { leads: false, llamadas: false, historiales: false, ejecutivos: false };
+    let cruceCache = null;
+    let vistaActual = 'config';
 
-    // Inicializar cliente Supabase
     function getSupabase() {
-      const url = document.getElementById('sb-url').value.trim();
-      const key = document.getElementById('sb-key').value.trim();
-      if (!supabaseClient) {
-        supabaseClient = window.supabase.createClient(url, key);
-      }
+      const url = localStorage_get('sb-url') || document.getElementById('sb-url')?.value?.trim();
+      const key = localStorage_get('sb-key') || document.getElementById('sb-key')?.value?.trim();
+      if (!supabaseClient) supabaseClient = window.supabase.createClient(SB_URL, SB_KEY);
       return supabaseClient;
     }
+    // Usamos valores fijos (visibles/editables en Configuración) en vez de localStorage,
+    // ya que este proyecto no usa localStorage para credenciales.
+    let SB_URL = "https://sbopifiiyezmvsadwkpg.supabase.co";
+    let SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib3BpZmlpeWV6bXZzYWR3a3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MzM0OTYsImV4cCI6MjEwMDMwOTQ5Nn0.ZI5y8lroFF529Xr-Otm1fcq6H2lhbh9e3s-WU9O6I7A";
+    function localStorage_get(){ return null; }
 
-    // Toggle ocultar/mostrar contraseña
+    function refrescarClienteSupabase() {
+      SB_URL = document.getElementById('sb-url').value.trim();
+      SB_KEY = document.getElementById('sb-key').value.trim();
+      supabaseClient = window.supabase.createClient(SB_URL, SB_KEY);
+    }
+
+    // ------------------------------------------------------------------
+    // NAVEGACION
+    // ------------------------------------------------------------------
+    function toggleSubmenu(id) {
+      document.getElementById(id).classList.toggle('hidden');
+    }
+
+    function irA(view) {
+      vistaActual = view;
+      document.querySelectorAll('.sidebar-btn, .sub-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector(`[data-view="${view}"]`);
+      if (btn) btn.classList.add('active');
+      render();
+    }
+
+    function render() {
+      const main = document.getElementById('main-content');
+      if (vistaActual === 'config') return renderConfig(main);
+      if (vistaActual === 'reg-pbx') return renderRegistro(main, 'llamadas', 'Llamadas PBX', 'fecha');
+      if (vistaActual === 'reg-cel') return renderRegistro(main, 'historiales', 'Llamadas Celular', 'fecha');
+      if (vistaActual === 'reg-leads') return renderRegistro(main, 'leads', 'Leads Calificados', 'fecha_agendada');
+      if (vistaActual === 'catalogo') return renderRegistro(main, 'ejecutivos', 'Catálogo de Ejecutivos', null);
+      if (vistaActual === 'res-pais') return renderResumenPais(main);
+      if (vistaActual === 'res-ejecutivo') return renderResumenEjecutivo(main);
+      if (vistaActual === 'res-detalle') return renderResumenDetalle(main);
+    }
+
+    // ------------------------------------------------------------------
+    // VISTA: CONFIGURACION
+    // ------------------------------------------------------------------
+    function renderConfig(main) {
+      main.innerHTML = `
+        <div class="max-w-xl bg-[#111827] p-5 rounded-lg border border-gray-800 space-y-4">
+          <h2 class="text-sm font-bold text-gray-300 flex items-center gap-2">⚙️ Configuración de Supabase</h2>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">URL de Supabase</label>
+            <input type="text" id="sb-url" value="${SB_URL}" class="w-full p-2 text-xs rounded focus:outline-none focus:border-cyan-500">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Anon Key de Supabase</label>
+            <input type="password" id="sb-key" value="${SB_KEY}" class="w-full p-2 text-xs rounded focus:outline-none focus:border-cyan-500">
+          </div>
+          <div class="flex gap-2">
+            <button onclick="toggleKey()" class="bg-gray-800 text-xs px-3 py-1.5 rounded hover:bg-gray-700">👁️ Mostrar/Ocultar</button>
+            <button onclick="refrescarClienteSupabase(); alert('Credenciales actualizadas.')" class="bg-slate-700 text-xs px-3 py-1.5 rounded hover:bg-slate-600">💾 Guardar credenciales</button>
+          </div>
+          <hr class="border-gray-800">
+          <h3 class="text-xs font-bold text-gray-400">Sincronización con la API externa</h3>
+          <button onclick="sincronizarAPI()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 text-xs rounded">⚡ Sincronizar API (Edge Function)</button>
+          <button onclick="recargarTodoYContadores()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 text-xs rounded">🔄 Recargar todos los datos</button>
+          <span id="estado-config" class="text-xs text-cyan-400 hidden">Procesando...</span>
+        </div>`;
+    }
+
     function toggleKey() {
       const input = document.getElementById('sb-key');
       input.type = input.type === 'password' ? 'text' : 'password';
     }
 
-    // 1. Cargar datos desde Supabase
-    async function cargarDatosBD() {
-      const client = getSupabase();
-      const tabla = document.getElementById('select-tabla').value;
-      const desde = document.getElementById('fecha-desde').value; // yyyy-mm-dd
-      const hasta = document.getElementById('fecha-hasta').value; // yyyy-mm-dd
-      const estado = document.getElementById('estado-cargando');
-
-      estado.classList.remove('hidden');
-
-      try {
-        // Columna de fecha por tabla (ajusta si tu tabla usa otro nombre)
-        const columnaFecha = tabla === 'llamadas' ? 'fecha'
-          : tabla === 'historiales' ? 'fecha_gestion'
-          : 'fecha_creacion';
-
-        let query = client
-          .from(tabla)
-          .select('*')
-          .order(columnaFecha, { ascending: false })
-          .limit(5000); // sube este límite si tu tabla crece más
-
-        if (desde) query = query.gte(columnaFecha, `${desde}T00:00:00.000Z`);
-        if (hasta) query = query.lte(columnaFecha, `${hasta}T23:59:59.999Z`);
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        datosCache = data || [];
-        renderizarTabla(datosCache);
-        actualizarContadores();
-      } catch (err) {
-        alert("Error cargando Supabase: " + err.message);
-        console.error(err);
-      } finally {
-        estado.classList.add('hidden');
-      }
-    }
-
-    // 2. Renderizar Tabla Dinámicamente
-    function renderizarTabla(datos) {
-      const thead = document.getElementById('tabla-head');
-      const tbody = document.getElementById('tabla-body');
-
-      if (!datos || datos.length === 0) {
-        thead.innerHTML = `<tr><th class="p-3">Sin resultados</th></tr>`;
-        tbody.innerHTML = `<tr><td class="p-4 text-center text-gray-500">No hay registros que mostrar.</td></tr>`;
-        return;
-      }
-
-      // Obtener nombres de columnas dinámicamente
-      const columnas = Object.keys(datos[0]);
-
-      // Generar Encabezados
-      thead.innerHTML = `<tr>${columnas.map(col => `<th class="p-3">${col}</th>`).join('')}</tr>`;
-
-      // Generar Filas (limitado a 100 visibles en DOM para fluidez)
-      tbody.innerHTML = datos.slice(0, 100).map(fila => {
-        return `<tr class="hover:bg-slate-800/50">${columnas.map(col => {
-          let val = fila[col];
-          if (val === null || val === undefined) val = '';
-          return `<td class="p-3 whitespace-nowrap text-gray-300">${val}</td>`;
-        }).join('')}</tr>`;
-      }).join('');
-    }
-
-    // 3. Actualizar Contadores Superiores
-    async function actualizarContadores() {
-      const client = getSupabase();
-      
-      const [rLeads, rHist, rLlam] = await Promise.all([
-        client.from('leads').select('*', { count: 'exact', head: true }),
-        client.from('historiales').select('*', { count: 'exact', head: true }),
-        client.from('llamadas').select('*', { count: 'exact', head: true })
-      ]);
-
-      const cL = rLeads.count || 0;
-      const cH = rHist.count || 0;
-      const cLl = rLlam.count || 0;
-
-      document.getElementById('cant-leads').innerText = cL.toLocaleString();
-      document.getElementById('cant-hist').innerText = cH.toLocaleString();
-      document.getElementById('cant-llam').innerText = cLl.toLocaleString();
-      document.getElementById('cant-total').innerText = (cL + cH + cLl).toLocaleString();
-    }
-
-    // 4. Sincronizar desde API Externa (Edge Function)
     async function sincronizarAPI() {
-      const url = document.getElementById('sb-url').value.trim();
-      const key = document.getElementById('sb-key').value.trim();
-      const estado = document.getElementById('estado-cargando');
-
-      estado.innerText = "Sincronizando API...";
-      estado.classList.remove('hidden');
-
+      const estado = document.getElementById('estado-config');
+      if (estado) { estado.innerText = "Sincronizando API..."; estado.classList.remove('hidden'); }
       try {
-        const res = await fetch(`${url}/functions/v1/sincronizar-datos`, {
+        const res = await fetch(`${SB_URL}/functions/v1/sincronizar-datos`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${key}`,
-            'apikey': key
-          }
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SB_KEY}`, 'apikey': SB_KEY }
         });
-
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-
-        alert("¡Sincronización completada con éxito!");
-        await cargarDatosBD();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        alert("¡Sincronización completada!");
+        await recargarTodoYContadores();
       } catch (err) {
         alert("Error al sincronizar: " + err.message);
       } finally {
-        estado.innerText = "Cargando...";
-        estado.classList.add('hidden');
+        if (estado) estado.classList.add('hidden');
       }
     }
 
-    // 5. Aplicar Filtro de búsqueda local (texto + rango de fechas sobre lo ya cargado)
-    function aplicarFiltroLocal() {
-      const q = document.getElementById('input-buscar').value.toLowerCase().trim();
-      const desde = document.getElementById('fecha-desde').value;
-      const hasta = document.getElementById('fecha-hasta').value;
-      const tabla = document.getElementById('select-tabla').value;
-      const columnaFecha = tabla === 'llamadas' ? 'fecha'
-        : tabla === 'historiales' ? 'fecha_gestion'
-        : 'fecha_creacion';
+    // ------------------------------------------------------------------
+    // CARGA DE DATOS (genérica, con paginación para traer TODO)
+    // ------------------------------------------------------------------
+    async function cargarTablaCompleta(tabla, orden) {
+      const client = getSupabase();
+      let todos = [];
+      let desde = 0;
+      const pageSize = 1000;
+      while (true) {
+        let q = client.from(tabla).select('*').range(desde, desde + pageSize - 1);
+        if (orden) q = q.order(orden, { ascending: false });
+        const { data, error } = await q;
+        if (error) throw error;
+        todos = todos.concat(data || []);
+        if (!data || data.length < pageSize) break;
+        desde += pageSize;
+      }
+      cache[tabla] = todos;
+      cargaCompleta[tabla] = true;
+      return todos;
+    }
 
-      let filtrados = datosCache;
+    async function asegurarCache(tabla, orden) {
+      if (!cargaCompleta[tabla]) await cargarTablaCompleta(tabla, orden);
+      return cache[tabla];
+    }
 
+    async function actualizarContadores() {
+      try {
+        const client = getSupabase();
+        const [rLeads, rHist, rLlam] = await Promise.all([
+          client.from('leads').select('*', { count: 'exact', head: true }),
+          client.from('historiales').select('*', { count: 'exact', head: true }),
+          client.from('llamadas').select('*', { count: 'exact', head: true })
+        ]);
+        const cL = rLeads.count || 0, cH = rHist.count || 0, cLl = rLlam.count || 0;
+        document.getElementById('cant-leads').innerText = cL.toLocaleString();
+        document.getElementById('cant-hist').innerText = cH.toLocaleString();
+        document.getElementById('cant-llam').innerText = cLl.toLocaleString();
+        document.getElementById('cant-total').innerText = (cL + cH + cLl).toLocaleString();
+      } catch (e) { console.error(e); }
+    }
+
+    async function recargarTodoYContadores() {
+      cargaCompleta = { leads: false, llamadas: false, historiales: false, ejecutivos: false };
+      cruceCache = null;
+      await Promise.all([
+        cargarTablaCompleta('leads', 'fecha_agendada'),
+        cargarTablaCompleta('llamadas', 'fecha'),
+        cargarTablaCompleta('historiales', 'fecha'),
+        cargarTablaCompleta('ejecutivos', null)
+      ]);
+      await actualizarContadores();
+      render();
+    }
+
+    // ------------------------------------------------------------------
+    // VISTA GENERICA: REGISTROS / CATALOGO (tabla con filtro por columna)
+    // ------------------------------------------------------------------
+    async function renderRegistro(main, tabla, titulo, columnaFecha) {
+      main.innerHTML = `
+        <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+          <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+            <h2 class="text-sm font-bold text-gray-300">📂 ${titulo}</h2>
+            <div class="flex flex-wrap gap-2 items-center">
+              ${columnaFecha ? `
+                <input type="date" id="f-desde" class="p-1.5 text-xs rounded">
+                <span class="text-xs text-gray-500">a</span>
+                <input type="date" id="f-hasta" class="p-1.5 text-xs rounded">
+                <button onclick="filtrarPorFecha('${tabla}','${columnaFecha}')" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1.5 rounded">📅 Filtrar fecha</button>
+              ` : ''}
+              <button onclick="recargarUnaTabla('${tabla}','${columnaFecha||''}')" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recargar</button>
+              <button onclick="exportarXLSX('${tabla}')" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+            </div>
+          </div>
+          <span id="estado-tabla" class="text-xs text-cyan-400">Cargando...</span>
+          <div class="overflow-auto mt-2" style="max-height: 68vh;">
+            <table class="w-full text-left text-xs" id="tabla-dinamica"></table>
+          </div>
+        </div>`;
+
+      await asegurarCache(tabla, columnaFecha);
+      document.getElementById('estado-tabla').classList.add('hidden');
+      pintarTablaConFiltros('tabla-dinamica', cache[tabla]);
+    }
+
+    async function recargarUnaTabla(tabla, columnaFecha) {
+      cargaCompleta[tabla] = false;
+      await cargarTablaCompleta(tabla, columnaFecha || null);
+      await actualizarContadores();
+      pintarTablaConFiltros('tabla-dinamica', cache[tabla]);
+    }
+
+    function filtrarPorFecha(tabla, columnaFecha) {
+      const desde = document.getElementById('f-desde').value;
+      const hasta = document.getElementById('f-hasta').value;
+      let datos = cache[tabla];
       if (desde || hasta) {
-        const desdeTime = desde ? new Date(`${desde}T00:00:00.000Z`).getTime() : null;
-        const hastaTime = hasta ? new Date(`${hasta}T23:59:59.999Z`).getTime() : null;
-
-        filtrados = filtrados.filter(item => {
-          const valorFecha = item[columnaFecha];
-          if (!valorFecha) return false;
-          const t = new Date(valorFecha).getTime();
-          if (desdeTime !== null && t < desdeTime) return false;
-          if (hastaTime !== null && t > hastaTime) return false;
+        const desdeT = desde ? new Date(desde + 'T00:00:00').getTime() : null;
+        const hastaT = hasta ? new Date(hasta + 'T23:59:59').getTime() : null;
+        datos = datos.filter(item => {
+          const raw = item[columnaFecha];
+          if (!raw) return false;
+          const t = new Date(raw).getTime();
+          if (isNaN(t)) return false;
+          if (desdeT !== null && t < desdeT) return false;
+          if (hastaT !== null && t > hastaT) return false;
           return true;
         });
       }
+      pintarTablaConFiltros('tabla-dinamica', datos);
+    }
 
-      if (q) {
-        filtrados = filtrados.filter(item => {
-          return Object.values(item).some(v => String(v).toLowerCase().includes(q));
-        });
+    // Tabla genérica con una fila de inputs de filtro por columna (contra los datos ya cargados)
+    let filtroColState = {};
+    function pintarTablaConFiltros(contId, datosBase) {
+      window.__datosBase = window.__datosBase || {};
+      window.__datosBase[contId] = datosBase;
+      filtroColState[contId] = filtroColState[contId] || {};
+      repintar(contId);
+    }
+
+    function repintar(contId) {
+      const datosBase = window.__datosBase[contId] || [];
+      const filtros = filtroColState[contId] || {};
+      const cont = document.getElementById(contId);
+      if (!datosBase.length) {
+        cont.innerHTML = `<tbody><tr><td class="p-4 text-center text-gray-500">No hay registros.</td></tr></tbody>`;
+        return;
       }
+      const columnas = Object.keys(datosBase[0]).filter(c => c !== 'created_at');
 
-      renderizarTabla(filtrados);
+      let filtrados = datosBase.filter(fila => {
+        return columnas.every(col => {
+          const f = (filtros[col] || '').toLowerCase().trim();
+          if (!f) return true;
+          const v = fila[col];
+          return v !== null && v !== undefined && String(v).toLowerCase().includes(f);
+        });
+      });
+
+      window.__ultimoFiltrado = window.__ultimoFiltrado || {};
+      window.__ultimoFiltrado[contId] = filtrados;
+
+      const thead = `<thead>
+        <tr>${columnas.map(c => `<th class="p-2">${c}</th>`).join('')}</tr>
+        <tr>${columnas.map(c => `<th class="p-1 bg-[#0b1120]"><input type="text" data-col="${c}" data-cont="${contId}" oninput="onFiltroColumna(this)" value="${(filtros[c]||'').replace(/"/g,'&quot;')}" placeholder="filtrar..." class="w-full p-1 text-[10px] rounded"></th>`).join('')}</tr>
+      </thead>`;
+
+      const filas = filtrados.slice(0, 300).map(fila => {
+        return `<tr class="hover:bg-slate-800/50">${columnas.map(c => {
+          let v = fila[c];
+          if (v === null || v === undefined) v = '';
+          return `<td class="p-2 whitespace-nowrap text-gray-300">${String(v).slice(0,120)}</td>`;
+        }).join('')}</tr>`;
+      }).join('');
+
+      cont.innerHTML = thead + `<tbody>${filas || `<tr><td class="p-4 text-center text-gray-500" colspan="${columnas.length}">Sin resultados con esos filtros.</td></tr>`}</tbody>`;
+
+      const contador = document.getElementById('estado-tabla');
+      if (contador) { contador.classList.remove('hidden'); contador.innerText = `${filtrados.length.toLocaleString()} de ${datosBase.length.toLocaleString()} registros (mostrando máx. 300 en pantalla, la exportación XLSX incluye todo)`; }
     }
 
-    // 6. Exportar a CSV
-    function exportarCSV() {
-      if (!datosCache || datosCache.length === 0) return alert("No hay datos para exportar.");
-      
-      const columnas = Object.keys(datosCache[0]);
-      let csvContent = "data:text/csv;charset=utf-8," 
-        + columnas.join(",") + "\n"
-        + datosCache.map(e => columnas.map(c => `"${e[c] !== null ? e[c] : ''}"`).join(",")).join("\n");
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `${document.getElementById('select-tabla').value}_export.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    function onFiltroColumna(input) {
+      const contId = input.dataset.cont;
+      const col = input.dataset.col;
+      filtroColState[contId] = filtroColState[contId] || {};
+      filtroColState[contId][col] = input.value;
+      repintar(contId);
     }
 
-    // Auto-cargas al iniciar
-    window.addEventListener('DOMContentLoaded', () => {
-      cargarDatosBD();
+    // ------------------------------------------------------------------
+    // EXPORTAR XLSX
+    // ------------------------------------------------------------------
+    function exportarXLSX(tabla) {
+      const datos = (window.__ultimoFiltrado && window.__ultimoFiltrado['tabla-dinamica']) || cache[tabla];
+      if (!datos || datos.length === 0) return alert("No hay datos para exportar.");
+      const ws = XLSX.utils.json_to_sheet(datos);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, tabla.slice(0, 30));
+      XLSX.writeFile(wb, `${tabla}_export_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function exportarXLSXGenerico(datos, nombre) {
+      if (!datos || datos.length === 0) return alert("No hay datos para exportar.");
+      const ws = XLSX.utils.json_to_sheet(datos);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, nombre.slice(0, 30));
+      XLSX.writeFile(wb, `${nombre}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    // ------------------------------------------------------------------
+    // MOTOR DE CRUCE: leads (fecha/hora prometida) vs llamadas PBX / Celular
+    // ------------------------------------------------------------------
+    function normalizarTel(tel) {
+      if (!tel) return '';
+      return String(tel).replace(/\D/g, '').slice(-8);
+    }
+
+    function parseFechaHora(fecha, hora) {
+      if (!fecha) return null;
+      let base = String(fecha).trim();
+      base = base.includes('T') ? base.split('T')[0] : base;
+      let h = hora ? String(hora).trim() : '00:00:00';
+      if (h.length === 5) h += ':00';
+      const d = new Date(`${base}T${h}`);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    function mismoDia(a, b) {
+      return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    }
+
+    async function calcularCruce(forzar) {
+      if (cruceCache && !forzar) return cruceCache;
+      await Promise.all([
+        asegurarCache('leads', 'fecha_agendada'),
+        asegurarCache('llamadas', 'fecha'),
+        asegurarCache('historiales', 'fecha'),
+        asegurarCache('ejecutivos', null)
+      ]);
+
+      const leads = cache.leads.filter(l => (l.tipo_reunion || '').toLowerCase().includes('llamada'));
+      const ahora = new Date();
+
+      const resultado = leads.map(lead => {
+        const telLead = normalizarTel(lead.telefono);
+        const progr = parseFechaHora(lead.fecha_agendada, lead.hora_agendada);
+        const ejec = cache.ejecutivos.find(e => (e.nombre_ejecutivo || '').trim().toLowerCase() === (lead.asesor_nombre || '').trim().toLowerCase());
+        const usuario = ejec ? ejec.usuario : null;
+
+        const candPBX = cache.llamadas
+          .filter(c => normalizarTel(c.destino) === telLead && telLead && (!usuario || c.nombre === usuario))
+          .map(c => ({ fuente: 'PBX', fechaHora: c.fecha_hora ? new Date(c.fecha_hora) : null, estadoLlamada: c.estado, raw: c }));
+
+        const candCel = cache.historiales
+          .filter(c => normalizarTel(c.destino) === telLead && telLead && (!usuario || c.usuario === usuario) && (c.tipo || '').toLowerCase() === 'saliente')
+          .map(c => {
+            const fBase = c.fecha ? String(c.fecha).split('T')[0] : null;
+            const fh = fBase && c.hora ? new Date(`${fBase}T${c.hora}`) : null;
+            return { fuente: 'Celular', fechaHora: fh, estadoLlamada: c.tipo, raw: c };
+          });
+
+        const candidatas = [...candPBX, ...candCel].filter(c => c.fechaHora && !isNaN(c.fechaHora.getTime()));
+
+        let estado = 'Sin llamada';
+        let coincidencia = null;
+        let diferenciaMin = null;
+
+        if (progr && candidatas.length) {
+          const delDia = candidatas.filter(c => mismoDia(c.fechaHora, progr));
+          if (delDia.length) {
+            delDia.sort((a, b) => Math.abs(a.fechaHora - progr) - Math.abs(b.fechaHora - progr));
+            coincidencia = delDia[0];
+            diferenciaMin = Math.round(Math.abs(coincidencia.fechaHora - progr) / 60000);
+            estado = diferenciaMin <= 5 ? 'Cumplió' : 'Mismo día fuera horario';
+          } else {
+            candidatas.sort((a, b) => Math.abs(a.fechaHora - progr) - Math.abs(b.fechaHora - progr));
+            coincidencia = candidatas[0];
+            estado = 'Llamó en otra fecha';
+          }
+        } else if (progr) {
+          const limite = new Date(progr.getTime() + 5 * 60000);
+          estado = ahora < limite ? 'Pendiente' : 'Sin llamada';
+        }
+
+        return {
+          pais: lead.pais || 'N/D',
+          ejecutivo: lead.asesor_nombre || 'Sin asignar',
+          codigo_prospecto: lead.codigo_prospecto,
+          lead: lead.nombre_prospecto,
+          telefono: lead.telefono,
+          fecha_reunion: lead.fecha_agendada,
+          hora_reunion: lead.hora_agendada,
+          status_lead: lead.status,
+          opportunity_stage: lead.opportunity_stage,
+          estado_cruce: estado,
+          diferencia_min: diferenciaMin,
+          fuente_llamada: coincidencia ? coincidencia.fuente : '',
+          fecha_llamada: coincidencia && coincidencia.fechaHora ? coincidencia.fechaHora.toISOString() : '',
+          catalogo_ok: ejec ? 'Sí' : 'No'
+        };
+      });
+
+      cruceCache = resultado;
+      return resultado;
+    }
+
+    function agregar(cruce, claveFn) {
+      const grupos = {};
+      cruce.forEach(r => {
+        const k = claveFn(r);
+        if (!grupos[k.key]) grupos[k.key] = { ...k.datos, leads: 0, evaluados: 0, cumplieron: 0, fuera_horario: 0, otra_fecha: 0, sin_llamada: 0, pendientes: 0 };
+        const g = grupos[k.key];
+        g.leads++; g.evaluados++;
+        if (r.estado_cruce === 'Cumplió') g.cumplieron++;
+        else if (r.estado_cruce === 'Mismo día fuera horario') g.fuera_horario++;
+        else if (r.estado_cruce === 'Llamó en otra fecha') g.otra_fecha++;
+        else if (r.estado_cruce === 'Sin llamada') g.sin_llamada++;
+        else if (r.estado_cruce === 'Pendiente') g.pendientes++;
+      });
+      return Object.values(grupos).map(g => {
+        const noCumplieron = g.fuera_horario + g.otra_fecha + g.sin_llamada;
+        const base = g.evaluados - g.pendientes;
+        const pct = base > 0 ? ((g.cumplieron / base) * 100).toFixed(1) + '%' : '—';
+        return { ...g, no_cumplieron: noCumplieron, pct_cumplimiento: pct };
+      });
+    }
+
+    // ------------------------------------------------------------------
+    // VISTA: RESUMEN POR PAIS
+    // ------------------------------------------------------------------
+    async function renderResumenPais(main) {
+      main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-gray-300">🌎 Resumen de Cumplimiento por País</h2>
+          <div class="flex gap-2">
+            <button onclick="calcularCruce(true).then(()=>renderResumenPais(document.getElementById('main-content')))" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recalcular</button>
+            <button id="btn-exp-pais" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+          </div>
+        </div>
+        <p class="text-[11px] text-gray-500 mb-3">Solo se evalúan leads con tipo de reunión "Llamada Telefónica". Tolerancia ±5 min. Teléfonos comparados por los últimos 8 dígitos.</p>
+        <div id="tabla-resumen-pais" class="overflow-auto text-xs"><span class="text-cyan-400">Calculando cruce...</span></div>
+      </div>`;
+
+      const cruce = await calcularCruce();
+      const datos = agregar(cruce, r => ({ key: r.pais, datos: { pais: r.pais } }));
+      pintarResumenSimple('tabla-resumen-pais', datos, ['pais', 'leads', 'evaluados', 'cumplieron', 'fuera_horario', 'otra_fecha', 'sin_llamada', 'pendientes', 'no_cumplieron', 'pct_cumplimiento']);
+      document.getElementById('btn-exp-pais').onclick = () => exportarXLSXGenerico(datos, 'resumen_por_pais');
+    }
+
+    // ------------------------------------------------------------------
+    // VISTA: RESUMEN POR EJECUTIVO
+    // ------------------------------------------------------------------
+    async function renderResumenEjecutivo(main) {
+      main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-gray-300">🧑‍💼 Resumen de Cumplimiento por Ejecutivo</h2>
+          <div class="flex gap-2">
+            <button onclick="calcularCruce(true).then(()=>renderResumenEjecutivo(document.getElementById('main-content')))" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recalcular</button>
+            <button id="btn-exp-ejec" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+          </div>
+        </div>
+        <div id="tabla-resumen-ejec" class="overflow-auto text-xs"><span class="text-cyan-400">Calculando cruce...</span></div>
+      </div>`;
+
+      const cruce = await calcularCruce();
+      const datos = agregar(cruce, r => ({ key: r.pais + '|' + r.ejecutivo, datos: { pais: r.pais, ejecutivo: r.ejecutivo } }));
+      pintarResumenSimple('tabla-resumen-ejec', datos, ['pais', 'ejecutivo', 'leads', 'evaluados', 'cumplieron', 'fuera_horario', 'otra_fecha', 'sin_llamada', 'pendientes', 'no_cumplieron', 'pct_cumplimiento']);
+      document.getElementById('btn-exp-ejec').onclick = () => exportarXLSXGenerico(datos, 'resumen_por_ejecutivo');
+    }
+
+    function pintarResumenSimple(contId, datos, columnas) {
+      const cont = document.getElementById(contId);
+      if (!datos.length) { cont.innerHTML = '<p class="text-gray-500 p-4">Sin datos.</p>'; return; }
+      const thead = `<tr>${columnas.map(c => `<th class="p-2">${c.replace(/_/g,' ')}</th>`).join('')}</tr>`;
+      const filas = datos.map(f => `<tr class="hover:bg-slate-800/50">${columnas.map(c => `<td class="p-2 whitespace-nowrap text-gray-300">${f[c]}</td>`).join('')}</tr>`).join('');
+      cont.innerHTML = `<table class="w-full text-left"><thead>${thead}</thead><tbody>${filas}</tbody></table>`;
+    }
+
+    // ------------------------------------------------------------------
+    // VISTA: DETALLE DEL CRUCE (con filtro por columna, como los Registros)
+    // ------------------------------------------------------------------
+    async function renderResumenDetalle(main) {
+      main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-gray-300">🔍 Detalle del Cruce por Lead</h2>
+          <div class="flex gap-2">
+            <button onclick="calcularCruce(true).then(()=>renderResumenDetalle(document.getElementById('main-content')))" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recalcular</button>
+            <button onclick="exportarXLSXGenerico(window.__ultimoFiltrado['tabla-detalle-cruce'] || cruceCache, 'detalle_cruce')" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+          </div>
+        </div>
+        <span id="estado-tabla" class="text-xs text-cyan-400">Calculando cruce...</span>
+        <div class="overflow-auto mt-2" style="max-height: 68vh;">
+          <table class="w-full text-left text-xs" id="tabla-detalle-cruce"></table>
+        </div>
+      </div>`;
+
+      const cruce = await calcularCruce();
+      document.getElementById('estado-tabla').classList.add('hidden');
+      pintarTablaConFiltros('tabla-detalle-cruce', cruce);
+    }
+
+    // ------------------------------------------------------------------
+    // INICIO
+    // ------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', async () => {
+      supabaseClient = window.supabase.createClient(SB_URL, SB_KEY);
+      irA('reg-pbx');
+      await actualizarContadores();
+      await asegurarCache('llamadas', 'fecha');
+      pintarTablaConFiltros('tabla-dinamica', cache['llamadas']);
     });
   </script>
 </body>
