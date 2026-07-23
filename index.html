@@ -83,6 +83,18 @@
         </div>
       </div>
 
+      <!-- FILTRO DE FECHA GLOBAL: siempre visible, no se pierde al cambiar de vista -->
+      <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-gray-800 bg-[#0d1526] shrink-0">
+        <span class="text-xs text-gray-400 font-bold">📅 Rango de fecha:</span>
+        <label class="text-[11px] text-gray-500">Desde</label>
+        <input type="date" id="global-desde" class="p-1.5 text-xs rounded">
+        <label class="text-[11px] text-gray-500">Hasta</label>
+        <input type="date" id="global-hasta" class="p-1.5 text-xs rounded">
+        <button onclick="render()" class="bg-cyan-700 hover:bg-cyan-600 text-xs px-3 py-1.5 rounded font-bold">Aplicar</button>
+        <button onclick="document.getElementById('global-desde').value='';document.getElementById('global-hasta').value='';render()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-1.5 rounded">Limpiar</button>
+        <span class="text-[10px] text-gray-500 ml-2">Se aplica a la vista actual y se mantiene al cambiar de pantalla.</span>
+      </div>
+
       <!-- CONTENIDO DINAMICO -->
       <main id="main-content" class="flex-1 overflow-y-auto p-4">
         <!-- se llena por JS -->
@@ -287,18 +299,31 @@
     // ==================================================================
     // TABLA GENERICA CON FILTRO ESTILO EXCEL (checkboxes por columna)
     // ==================================================================
+    // Aplica el filtro de fecha GLOBAL (barra fija arriba) sobre cualquier arreglo de datos
+    function filtrarPorFechaGlobal(datos, columnaFecha) {
+      if (!columnaFecha) return datos;
+      const desde = document.getElementById('global-desde')?.value;
+      const hasta = document.getElementById('global-hasta')?.value;
+      if (!desde && !hasta) return datos;
+      const desdeT = desde ? new Date(desde + 'T00:00:00').getTime() : null;
+      const hastaT = hasta ? new Date(hasta + 'T23:59:59').getTime() : null;
+      return datos.filter(item => {
+        const raw = item[columnaFecha];
+        if (!raw) return false;
+        const t = new Date(raw).getTime();
+        if (isNaN(t)) return false;
+        if (desdeT !== null && t < desdeT) return false;
+        if (hastaT !== null && t > hastaT) return false;
+        return true;
+      });
+    }
+
     async function renderRegistro(main, tabla, titulo, columnaFecha) {
       main.innerHTML = `
         <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
           <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
             <h2 class="text-sm font-bold text-gray-300">📂 ${titulo}</h2>
             <div class="flex flex-wrap gap-2 items-center">
-              ${columnaFecha ? `
-                <input type="date" id="f-desde" class="p-1.5 text-xs rounded">
-                <span class="text-xs text-gray-500">a</span>
-                <input type="date" id="f-hasta" class="p-1.5 text-xs rounded">
-                <button onclick="filtrarPorFecha('${tabla}','${columnaFecha}')" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1.5 rounded">📅 Filtrar fecha</button>
-              ` : ''}
               <button onclick="recargarUnaTabla('${tabla}','${columnaFecha||''}')" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recargar</button>
               <button onclick="exportarXLSX('tabla-dinamica','${tabla}')" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
             </div>
@@ -311,34 +336,14 @@
 
       await asegurarCache(tabla, columnaFecha);
       document.getElementById('estado-tabla').classList.add('hidden');
-      pintarTablaConFiltros('tabla-dinamica', cache[tabla]);
+      pintarTablaConFiltros('tabla-dinamica', filtrarPorFechaGlobal(cache[tabla], columnaFecha));
     }
 
     async function recargarUnaTabla(tabla, columnaFecha) {
       cargaCompleta[tabla] = false;
       await cargarTablaCompleta(tabla, columnaFecha || null);
       await actualizarContadores();
-      pintarTablaConFiltros('tabla-dinamica', cache[tabla]);
-    }
-
-    function filtrarPorFecha(tabla, columnaFecha) {
-      const desde = document.getElementById('f-desde').value;
-      const hasta = document.getElementById('f-hasta').value;
-      let datos = cache[tabla];
-      if (desde || hasta) {
-        const desdeT = desde ? new Date(desde + 'T00:00:00').getTime() : null;
-        const hastaT = hasta ? new Date(hasta + 'T23:59:59').getTime() : null;
-        datos = datos.filter(item => {
-          const raw = item[columnaFecha];
-          if (!raw) return false;
-          const t = new Date(raw).getTime();
-          if (isNaN(t)) return false;
-          if (desdeT !== null && t < desdeT) return false;
-          if (hastaT !== null && t > hastaT) return false;
-          return true;
-        });
-      }
-      pintarTablaConFiltros('tabla-dinamica', datos);
+      pintarTablaConFiltros('tabla-dinamica', filtrarPorFechaGlobal(cache[tabla], columnaFecha));
     }
 
     // filtroColState[contId][col] = Set de valores permitidos (undefined = sin filtro / todos)
@@ -513,7 +518,8 @@
     }
 
     async function calcularCruce(forzar) {
-      if (cruceCache && !forzar) return cruceCache;
+      // Nota: recalculamos siempre (no usamos caché) para que el filtro de fecha
+      // global se refleje al instante al cambiar de vista o presionar "Aplicar".
       await Promise.all([
         asegurarCache('leads', 'fecha_agendada'),
         asegurarCache('llamadas', 'fecha'),
@@ -521,7 +527,8 @@
         asegurarCache('ejecutivos', null)
       ]);
 
-      const leads = cache.leads.filter(l => (l.tipo_reunion || '').toLowerCase().includes('llamada'));
+      let leads = cache.leads.filter(l => (l.tipo_reunion || '').toLowerCase().includes('llamada'));
+      leads = filtrarPorFechaGlobal(leads, 'fecha_agendada');
       const ahora = new Date();
 
       const resultado = leads.map(lead => {
@@ -698,7 +705,8 @@
     // ==================================================================
     async function calcularTeams(forzar) {
       await asegurarCache('leads', 'fecha_agendada');
-      const leads = cache.leads.filter(l => !(l.tipo_reunion || '').toLowerCase().includes('llamada'));
+      let leads = cache.leads.filter(l => !(l.tipo_reunion || '').toLowerCase().includes('llamada'));
+      leads = filtrarPorFechaGlobal(leads, 'fecha_agendada');
       const ahora = new Date();
       return leads.map(lead => {
         const progr = parseFechaHora(lead.fecha_agendada, lead.hora_agendada);
