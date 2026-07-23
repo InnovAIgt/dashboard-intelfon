@@ -1,201 +1,800 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard IntelFon - InnovaIGT</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body { background-color: #0b1120; color: #f3f4f6; }
+    input, select { background-color: #1e293b; color: #ffffff; border: 1px solid #334155; }
+    th { background-color: #1e293b; color: #94a3b8; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; white-space: nowrap; }
+    td { border-bottom: 1px solid #1e293b; }
+    .sidebar-btn { display:flex; align-items:center; gap:.5rem; width:100%; text-align:left; padding:.6rem .8rem; border-radius:.5rem; font-size:.82rem; color:#cbd5e1; }
+    .sidebar-btn:hover { background:#1e293b; }
+    .sidebar-btn.active { background:#0e7490; color:#fff; font-weight:600; }
+    .sub-btn { display:block; width:100%; text-align:left; padding:.4rem .8rem .4rem 2.2rem; border-radius:.4rem; font-size:.78rem; color:#94a3b8; }
+    .sub-btn:hover { background:#1e293b; color:#fff; }
+    .sub-btn.active { background:#164e63; color:#67e8f9; font-weight:600; }
+    .badge { padding:2px 9px; border-radius:9999px; font-size:.68rem; font-weight:700; white-space:nowrap; display:inline-block; }
+    .filtro-icono { cursor:pointer; margin-left:4px; opacity:.6; }
+    .filtro-icono:hover { opacity:1; }
+    .filtro-icono.activo { color:#22d3ee; opacity:1; }
+    #col-filter-popup { box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+    .cfp-item { display:flex; align-items:center; gap:6px; padding:2px 4px; border-radius:4px; }
+    .cfp-item:hover { background:#0f172a; }
+  </style>
+</head>
+<body class="font-sans">
 
-// Headers obligatorios para permitir peticiones desde GitHub Pages (CORS)
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-};
+  <div class="flex h-screen overflow-hidden">
 
-const BATCH_SIZE = 500; // tamaño de lote para no mandar arreglos gigantes en un solo upsert
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-[#0f172a] border-r border-gray-800 flex flex-col shrink-0 overflow-y-auto">
+      <div class="p-4 border-b border-gray-800">
+        <h1 class="text-sm font-bold text-cyan-400">📊 Dashboard IntelFon</h1>
+        <p class="text-[10px] text-gray-500 mt-0.5">InnovaIGT</p>
+      </div>
+      <nav class="p-3 space-y-1 flex-1">
+        <button class="sidebar-btn" data-view="config" onclick="irA('config')">⚙️ <span>Configuración</span></button>
 
-// Hace upsert en lotes contra una tabla, con onConflict explícito, y devuelve
-// { insertados, errores } en vez de tragarse los fallos.
-async function upsertEnLotes(
-  supabase: any,
-  tabla: string,
-  registros: any[],
-  onConflictCol: string
-) {
-  const errores: any[] = [];
-  let insertados = 0;
+        <button class="sidebar-btn" onclick="toggleSubmenu('submenu-registros')">🗂️ <span>Registros</span> <span class="ml-auto text-xs">▾</span></button>
+        <div id="submenu-registros" class="space-y-0.5">
+          <button class="sub-btn" data-view="reg-pbx" onclick="irA('reg-pbx')">📞 Llamadas PBX</button>
+          <button class="sub-btn" data-view="reg-cel" onclick="irA('reg-cel')">📱 Llamadas Celular</button>
+          <button class="sub-btn" data-view="reg-leads" onclick="irA('reg-leads')">🎯 Leads Calificados</button>
+        </div>
 
-  // Separar los registros que no tienen la columna de conflicto (no se pueden
-  // deduplicar de forma confiable con onConflict, ya que NULL != NULL en Postgres)
-  const validos = registros.filter((r) => r?.[onConflictCol] != null && r?.[onConflictCol] !== "");
-  const sinClave = registros.length - validos.length;
+        <button class="sidebar-btn" data-view="catalogo" onclick="irA('catalogo')">📇 <span>Catálogo</span></button>
 
-  for (let i = 0; i < validos.length; i += BATCH_SIZE) {
-    const lote = validos.slice(i, i + BATCH_SIZE);
-    const { error, count } = await supabase
-      .from(tabla)
-      .upsert(lote, { onConflict: onConflictCol, ignoreDuplicates: false, count: "exact" });
+        <button class="sidebar-btn" onclick="toggleSubmenu('submenu-resumen')">📈 <span>Resumen</span> <span class="ml-auto text-xs">▾</span></button>
+        <div id="submenu-resumen" class="space-y-0.5">
+          <button class="sub-btn" data-view="res-pais" onclick="irA('res-pais')">🌎 Resumen País</button>
+          <button class="sub-btn" data-view="res-ejecutivo" onclick="irA('res-ejecutivo')">🧑‍💼 Resumen Llamadas</button>
+          <button class="sub-btn" data-view="res-detalle" onclick="irA('res-detalle')">🔍 Detalle Llamadas</button>
+          <button class="sub-btn" data-view="res-teams" onclick="irA('res-teams')">👥 TEAMS</button>
+          <button class="sub-btn" data-view="res-detalle-teams" onclick="irA('res-detalle-teams')">📋 Detalle TEAMS</button>
+        </div>
+      </nav>
+    </aside>
 
-    if (error) {
-      errores.push({ tabla, lote_desde: i, mensaje: error.message, detalles: error.details ?? null });
-    } else {
-      insertados += lote.length;
+    <!-- MAIN -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+
+      <!-- CONTADORES -->
+      <div class="grid grid-cols-4 gap-3 p-4 border-b border-gray-800 shrink-0">
+        <div class="bg-[#111827] p-3 rounded-lg border border-gray-800">
+          <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">LEADS</span>
+          <div id="cant-leads" class="text-2xl font-extrabold text-cyan-400 mt-1">0</div>
+        </div>
+        <div class="bg-[#111827] p-3 rounded-lg border border-gray-800">
+          <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">LLAMADAS CELULAR</span>
+          <div id="cant-hist" class="text-2xl font-extrabold text-cyan-400 mt-1">0</div>
+        </div>
+        <div class="bg-[#111827] p-3 rounded-lg border border-gray-800">
+          <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">LLAMADAS PBX</span>
+          <div id="cant-llam" class="text-2xl font-extrabold text-cyan-400 mt-1">0</div>
+        </div>
+        <div class="bg-[#111827] p-3 rounded-lg border border-gray-800">
+          <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">TOTAL GENERAL</span>
+          <div id="cant-total" class="text-2xl font-extrabold text-emerald-400 mt-1">0</div>
+        </div>
+      </div>
+
+      <!-- FILTRO DE FECHA GLOBAL: siempre visible, no se pierde al cambiar de vista -->
+      <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-gray-800 bg-[#0d1526] shrink-0">
+        <span class="text-xs text-gray-400 font-bold">📅 Rango de fecha:</span>
+        <label class="text-[11px] text-gray-500">Desde</label>
+        <input type="date" id="global-desde" class="p-1.5 text-xs rounded">
+        <label class="text-[11px] text-gray-500">Hasta</label>
+        <input type="date" id="global-hasta" class="p-1.5 text-xs rounded">
+        <button onclick="render()" class="bg-cyan-700 hover:bg-cyan-600 text-xs px-3 py-1.5 rounded font-bold">Aplicar</button>
+        <button onclick="document.getElementById('global-desde').value='';document.getElementById('global-hasta').value='';render()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-1.5 rounded">Limpiar</button>
+        <span class="text-[10px] text-gray-500 ml-2">Se aplica a la vista actual y se mantiene al cambiar de pantalla.</span>
+      </div>
+
+      <!-- CONTENIDO DINAMICO -->
+      <main id="main-content" class="flex-1 overflow-y-auto p-4">
+        <!-- se llena por JS -->
+      </main>
+    </div>
+  </div>
+
+  <!-- POPUP DE FILTRO ESTILO EXCEL -->
+  <div id="col-filter-popup" class="hidden fixed z-50 bg-[#1e293b] border border-gray-700 rounded-lg p-2 w-64 text-xs">
+    <input id="cfp-search" placeholder="Buscar valor..." oninput="cfpFiltrarLista()" class="w-full p-1.5 mb-2 text-xs rounded">
+    <div class="flex justify-between mb-1 px-1">
+      <button onclick="cfpSeleccionarTodos()" class="text-cyan-400 hover:underline">Seleccionar todos</button>
+      <button onclick="cfpBorrar()" class="text-cyan-400 hover:underline">Ninguno</button>
+    </div>
+    <div id="cfp-lista" class="max-h-52 overflow-y-auto space-y-0.5 border-t border-b border-gray-700 py-1 my-1"></div>
+    <div class="flex justify-end gap-2 mt-2">
+      <button onclick="cfpCancelar()" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">Cancelar</button>
+      <button onclick="cfpAceptar()" class="px-2 py-1 bg-cyan-600 hover:bg-cyan-500 rounded font-bold">Aceptar</button>
+    </div>
+  </div>
+
+  <script>
+    // ==================================================================
+    // ESTADO GLOBAL
+    // ==================================================================
+    let supabaseClient = null;
+    let cache = { leads: [], llamadas: [], historiales: [], ejecutivos: [] };
+    let cargaCompleta = { leads: false, llamadas: false, historiales: false, ejecutivos: false };
+    let cruceCache = null;
+    let vistaActual = 'config';
+
+    let SB_URL = "https://sbopifiiyezmvsadwkpg.supabase.co";
+    let SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNib3BpZmlpeWV6bXZzYWR3a3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MzM0OTYsImV4cCI6MjEwMDMwOTQ5Nn0.ZI5y8lroFF529Xr-Otm1fcq6H2lhbh9e3s-WU9O6I7A";
+
+    function getSupabase() {
+      if (!supabaseClient) supabaseClient = window.supabase.createClient(SB_URL, SB_KEY);
+      return supabaseClient;
     }
-  }
 
-  return { tabla, insertados, sinClave, errores };
-}
-
-// Hace fetch a una API externa y NUNCA se traga el error en silencio:
-// devuelve { data, diagnostico } donde diagnostico explica qué pasó si data quedó vacío.
-async function fetchApiConDiagnostico(nombre: string, url: string, opciones: RequestInit = {}) {
-  try {
-    const r = await fetch(url, opciones);
-    const textoCrudo = await r.text();
-
-    if (!r.ok) {
-      return {
-        data: [],
-        diagnostico: {
-          fuente: nombre,
-          ok: false,
-          http_status: r.status,
-          mensaje: `La API respondió HTTP ${r.status}`,
-          cuerpo_respuesta: textoCrudo.slice(0, 500), // recortado para no inflar el log
-        },
-      };
+    function refrescarClienteSupabase() {
+      SB_URL = document.getElementById('sb-url').value.trim();
+      SB_KEY = document.getElementById('sb-key').value.trim();
+      supabaseClient = window.supabase.createClient(SB_URL, SB_KEY);
     }
 
-    let json: any;
-    try {
-      json = JSON.parse(textoCrudo);
-    } catch (parseErr: any) {
-      return {
-        data: [],
-        diagnostico: {
-          fuente: nombre,
-          ok: false,
-          http_status: r.status,
-          mensaje: `Respuesta no es JSON válido: ${parseErr.message}`,
-          cuerpo_respuesta: textoCrudo.slice(0, 500),
-        },
-      };
+    // ==================================================================
+    // NAVEGACION
+    // ==================================================================
+    function toggleSubmenu(id) { document.getElementById(id).classList.toggle('hidden'); }
+
+    function irA(view) {
+      vistaActual = view;
+      document.querySelectorAll('.sidebar-btn, .sub-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector(`[data-view="${view}"]`);
+      if (btn) btn.classList.add('active');
+      render();
     }
 
-    return { data: json, diagnostico: { fuente: nombre, ok: true, http_status: r.status } };
-  } catch (err: any) {
-    // Esto captura fallos de red reales: DNS, timeout, conexión rechazada, etc.
-    return {
-      data: [],
-      diagnostico: {
-        fuente: nombre,
-        ok: false,
-        http_status: null,
-        mensaje: `Fallo de red/fetch: ${err.message}`,
-        cuerpo_respuesta: null,
-      },
-    };
-  }
-}
-
-Deno.serve(async (req) => {
-  // 1. Responder inmediatamente a las peticiones Preflight de los navegadores
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  try {
-    // 2. Cliente Supabase con Service Role o Credenciales de Entorno
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const supabaseKey = serviceKey || anonKey;
-    const usandoAnonFallback = !serviceKey && !!anonKey;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return new Response(
-        JSON.stringify({
-          status: "error",
-          message: "Faltan variables de entorno SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY.",
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    function render() {
+      const main = document.getElementById('main-content');
+      if (vistaActual === 'config') return renderConfig(main);
+      if (vistaActual === 'reg-pbx') return renderRegistro(main, 'llamadas', 'Llamadas PBX', 'fecha');
+      if (vistaActual === 'reg-cel') return renderRegistro(main, 'historiales', 'Llamadas Celular', 'fecha');
+      if (vistaActual === 'reg-leads') return renderRegistro(main, 'leads', 'Leads Calificados', 'fecha_agendada');
+      if (vistaActual === 'catalogo') return renderRegistro(main, 'ejecutivos', 'Catálogo de Ejecutivos', null);
+      if (vistaActual === 'res-pais') return renderResumenPais(main);
+      if (vistaActual === 'res-ejecutivo') return renderResumenEjecutivo(main);
+      if (vistaActual === 'res-detalle') return renderResumenDetalle(main);
+      if (vistaActual === 'res-teams') return renderResumenTeams(main);
+      if (vistaActual === 'res-detalle-teams') return renderDetalleTeams(main);
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // ==================================================================
+    // VISTA: CONFIGURACION
+    // ==================================================================
+    function renderConfig(main) {
+      main.innerHTML = `
+        <div class="max-w-xl bg-[#111827] p-5 rounded-lg border border-gray-800 space-y-4">
+          <h2 class="text-sm font-bold text-gray-300 flex items-center gap-2">⚙️ Configuración de Supabase</h2>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">URL de Supabase</label>
+            <input type="text" id="sb-url" value="${SB_URL}" class="w-full p-2 text-xs rounded focus:outline-none focus:border-cyan-500">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Anon Key de Supabase</label>
+            <input type="password" id="sb-key" value="${SB_KEY}" class="w-full p-2 text-xs rounded focus:outline-none focus:border-cyan-500">
+          </div>
+          <div class="flex gap-2">
+            <button onclick="toggleKey()" class="bg-gray-800 text-xs px-3 py-1.5 rounded hover:bg-gray-700">👁️ Mostrar/Ocultar</button>
+            <button onclick="refrescarClienteSupabase(); alert('Credenciales actualizadas.')" class="bg-slate-700 text-xs px-3 py-1.5 rounded hover:bg-slate-600">💾 Guardar credenciales</button>
+          </div>
+          <hr class="border-gray-800">
+          <h3 class="text-xs font-bold text-gray-400">Sincronización con la API externa</h3>
+          <button onclick="sincronizarAPI()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 text-xs rounded">⚡ Sincronizar API (Edge Function)</button>
+          <button onclick="recargarTodoYContadores()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 text-xs rounded">🔄 Recargar todos los datos</button>
+          <span id="estado-config" class="text-xs text-cyan-400 hidden">Procesando...</span>
+        </div>`;
+    }
 
-    // Formatear fechas
-    const hoy = new Date().toISOString().split("T")[0];
-    const hace7dias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    function toggleKey() {
+      const input = document.getElementById('sb-key');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
 
-    // 3. Peticiones concurrentes en paralelo a las 3 APIs, con diagnóstico si algo falla
-    const [leadsRes, historialesRes, llamadasRes] = await Promise.all([
-      fetchApiConDiagnostico(
-        "leads",
-        "https://prospektia.red.com.sv/api/external/leads-calificados",
-        { method: "GET", headers: { "X-API-Key": "RedApi_2026_SuperSegura_9XK2" } }
-      ),
-      fetchApiConDiagnostico(
-        "historiales",
-        "https://kpi.red.com.sv/api/historial-llamadas-ejecutivos",
-        { method: "GET", headers: { "X-API-KEY": "mso_papi_2026_7f2b9c4d8e6a1b3f5d7c9e0a2b4c6d8f" } }
-      ),
-      fetchApiConDiagnostico(
-        "llamadas",
-        `https://api.red.com.sv/idata/api/v1/desaIssabel/getResumenLlamada?fechaInicial=${hace7dias}&fechaFinal=${hoy}`
-      ),
-    ]);
-
-    // Extraer arreglos (algunas APIs devuelven el arreglo directo, otras { data: [...] })
-    const dataLeads = Array.isArray(leadsRes.data) ? leadsRes.data : leadsRes.data?.data || [];
-    const dataHistoriales = Array.isArray(historialesRes.data) ? historialesRes.data : historialesRes.data?.data || [];
-    const dataLlamadas = Array.isArray(llamadasRes.data) ? llamadasRes.data : llamadasRes.data?.data || [];
-
-    const diagnosticoApis = {
-      leads: leadsRes.diagnostico,
-      historiales: historialesRes.diagnostico,
-      llamadas: llamadasRes.diagnostico,
-    };
-
-    // 4. Upsert real: onConflict contra la columna única de cada tabla, en lotes,
-    //    revisando el error de cada operación (nada se guarda en silencio).
-    const resultados = await Promise.all([
-      dataLeads.length > 0
-        ? upsertEnLotes(supabase, "leads", dataLeads, "codigo_prospecto")
-        : { tabla: "leads", insertados: 0, sinClave: 0, errores: [] },
-      dataHistoriales.length > 0
-        ? upsertEnLotes(supabase, "historiales", dataHistoriales, "id")
-        : { tabla: "historiales", insertados: 0, sinClave: 0, errores: [] },
-      dataLlamadas.length > 0
-        ? upsertEnLotes(supabase, "llamadas", dataLlamadas, "uniqueid")
-        : { tabla: "llamadas", insertados: 0, sinClave: 0, errores: [] },
-    ]);
-
-    const huboFalloDeApi = Object.values(diagnosticoApis).some((d) => !d.ok);
-    const huboErrores = resultados.some((r) => r.errores.length > 0) || huboFalloDeApi;
-
-    // 5. Respuesta: nunca decimos "success" si algo falló.
-    return new Response(
-      JSON.stringify({
-        status: huboErrores ? "partial_error" : "success",
-        advertencia_credenciales: usandoAnonFallback
-          ? "SUPABASE_SERVICE_ROLE_KEY no está configurada; se usó SUPABASE_ANON_KEY. Si RLS bloquea escritura para 'anon', los upserts fallarán."
-          : null,
-        registros_recibidos: {
-          leads: dataLeads.length,
-          historiales: dataHistoriales.length,
-          llamadas: dataLlamadas.length,
-        },
-        diagnostico_apis: diagnosticoApis,
-        resultado_por_tabla: resultados,
-      }),
-      {
-        status: huboErrores ? 207 : 200, // 207 Multi-Status: parte ok, parte falló
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    async function sincronizarAPI() {
+      const estado = document.getElementById('estado-config');
+      if (estado) { estado.innerText = "Sincronizando API..."; estado.classList.remove('hidden'); }
+      try {
+        const res = await fetch(`${SB_URL}/functions/v1/sincronizar-datos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SB_KEY}`, 'apikey': SB_KEY }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        alert("¡Sincronización completada!");
+        await recargarTodoYContadores();
+      } catch (err) {
+        alert("Error al sincronizar: " + err.message);
+      } finally {
+        if (estado) estado.classList.add('hidden');
       }
-    );
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({ status: "error", message: err.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+
+    // ==================================================================
+    // CARGA DE DATOS
+    // ==================================================================
+    async function cargarTablaCompleta(tabla, orden) {
+      const client = getSupabase();
+      let todos = [];
+      let desde = 0;
+      const pageSize = 1000;
+      while (true) {
+        let q = client.from(tabla).select('*').range(desde, desde + pageSize - 1);
+        if (orden) q = q.order(orden, { ascending: false });
+        const { data, error } = await q;
+        if (error) throw error;
+        todos = todos.concat(data || []);
+        if (!data || data.length < pageSize) break;
+        desde += pageSize;
       }
-    );
-  }
-});
+      cache[tabla] = todos;
+      cargaCompleta[tabla] = true;
+      return todos;
+    }
+
+    async function asegurarCache(tabla, orden) {
+      if (!cargaCompleta[tabla]) await cargarTablaCompleta(tabla, orden);
+      return cache[tabla];
+    }
+
+    async function actualizarContadores() {
+      try {
+        const client = getSupabase();
+        const [rLeads, rHist, rLlam] = await Promise.all([
+          client.from('leads').select('*', { count: 'exact', head: true }),
+          client.from('historiales').select('*', { count: 'exact', head: true }),
+          client.from('llamadas').select('*', { count: 'exact', head: true })
+        ]);
+        const cL = rLeads.count || 0, cH = rHist.count || 0, cLl = rLlam.count || 0;
+        document.getElementById('cant-leads').innerText = cL.toLocaleString();
+        document.getElementById('cant-hist').innerText = cH.toLocaleString();
+        document.getElementById('cant-llam').innerText = cLl.toLocaleString();
+        document.getElementById('cant-total').innerText = (cL + cH + cLl).toLocaleString();
+      } catch (e) { console.error(e); }
+    }
+
+    async function recargarTodoYContadores() {
+      cargaCompleta = { leads: false, llamadas: false, historiales: false, ejecutivos: false };
+      cruceCache = null;
+      await Promise.all([
+        cargarTablaCompleta('leads', 'fecha_agendada'),
+        cargarTablaCompleta('llamadas', 'fecha'),
+        cargarTablaCompleta('historiales', 'fecha'),
+        cargarTablaCompleta('ejecutivos', null)
+      ]);
+      await actualizarContadores();
+      render();
+    }
+
+    // ==================================================================
+    // BADGES DE ESTADO (colores)
+    // ==================================================================
+    function badgeEstadoCruce(estado) {
+      const map = {
+        'Cumplió':                     'bg-emerald-900 text-emerald-300',
+        'Mismo día fuera horario':     'bg-amber-900 text-amber-300',
+        'Llamó en otra fecha':         'bg-orange-900 text-orange-300',
+        'Sin llamada':                 'bg-red-900 text-red-300',
+        'Pendiente':                   'bg-sky-900 text-sky-300',
+        'Sin evidencia Teams':         'bg-red-900 text-red-300'
+      };
+      const cls = map[estado] || 'bg-gray-700 text-gray-300';
+      return `<span class="badge ${cls}">${estado}</span>`;
+    }
+
+    function claseClasificacion(pctNum, evaluados) {
+      if (evaluados === 0) return { texto: 'Sin datos', clase: 'bg-gray-700 text-gray-300' };
+      if (pctNum >= 70) return { texto: 'Buen cumplimiento', clase: 'bg-emerald-900 text-emerald-300' };
+      if (pctNum > 0) return { texto: 'Cumplimiento parcial', clase: 'bg-amber-900 text-amber-300' };
+      return { texto: 'Sin cumplimiento en horario', clase: 'bg-red-900 text-red-300' };
+    }
+
+    // ==================================================================
+    // TABLA GENERICA CON FILTRO ESTILO EXCEL (checkboxes por columna)
+    // ==================================================================
+    // Aplica el filtro de fecha GLOBAL (barra fija arriba) sobre cualquier arreglo de datos
+    function filtrarPorFechaGlobal(datos, columnaFecha) {
+      if (!columnaFecha) return datos;
+      const desde = document.getElementById('global-desde')?.value;
+      const hasta = document.getElementById('global-hasta')?.value;
+      if (!desde && !hasta) return datos;
+      const desdeT = desde ? new Date(desde + 'T00:00:00').getTime() : null;
+      const hastaT = hasta ? new Date(hasta + 'T23:59:59').getTime() : null;
+      return datos.filter(item => {
+        const raw = item[columnaFecha];
+        if (!raw) return false;
+        const t = new Date(raw).getTime();
+        if (isNaN(t)) return false;
+        if (desdeT !== null && t < desdeT) return false;
+        if (hastaT !== null && t > hastaT) return false;
+        return true;
+      });
+    }
+
+    async function renderRegistro(main, tabla, titulo, columnaFecha) {
+      main.innerHTML = `
+        <div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+          <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+            <h2 class="text-sm font-bold text-gray-300">📂 ${titulo}</h2>
+            <div class="flex flex-wrap gap-2 items-center">
+              <button onclick="recargarUnaTabla('${tabla}','${columnaFecha||''}')" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recargar</button>
+              <button onclick="exportarXLSX('tabla-dinamica','${tabla}')" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+            </div>
+          </div>
+          <span id="estado-tabla" class="text-xs text-cyan-400">Cargando...</span>
+          <div class="overflow-auto mt-2" style="max-height: 68vh;">
+            <table class="w-full text-left text-xs" id="tabla-dinamica"></table>
+          </div>
+        </div>`;
+
+      await asegurarCache(tabla, columnaFecha);
+      document.getElementById('estado-tabla').classList.add('hidden');
+      pintarTablaConFiltros('tabla-dinamica', filtrarPorFechaGlobal(cache[tabla], columnaFecha));
+    }
+
+    async function recargarUnaTabla(tabla, columnaFecha) {
+      cargaCompleta[tabla] = false;
+      await cargarTablaCompleta(tabla, columnaFecha || null);
+      await actualizarContadores();
+      pintarTablaConFiltros('tabla-dinamica', filtrarPorFechaGlobal(cache[tabla], columnaFecha));
+    }
+
+    // filtroColState[contId][col] = Set de valores permitidos (undefined = sin filtro / todos)
+    let filtroColState = {};
+    window.__datosBase = {};
+    window.__ultimoFiltrado = {};
+
+    function valorMostrable(v) {
+      if (v === null || v === undefined || v === '') return '(Vacío)';
+      return String(v);
+    }
+
+    function pintarTablaConFiltros(contId, datosBase) {
+      window.__datosBase[contId] = datosBase;
+      filtroColState[contId] = filtroColState[contId] || {};
+      repintar(contId);
+    }
+
+    function repintar(contId) {
+      const datosBase = window.__datosBase[contId] || [];
+      const filtros = filtroColState[contId] || {};
+      const cont = document.getElementById(contId);
+      if (!cont) return;
+      if (!datosBase.length) {
+        cont.innerHTML = `<tbody><tr><td class="p-4 text-center text-gray-500">No hay registros.</td></tr></tbody>`;
+        return;
+      }
+      const columnas = Object.keys(datosBase[0]).filter(c => c !== 'created_at');
+
+      let filtrados = datosBase.filter(fila => {
+        return columnas.every(col => {
+          const set = filtros[col];
+          if (!set) return true; // sin filtro = pasa todo
+          return set.has(valorMostrable(fila[col]));
+        });
+      });
+
+      window.__ultimoFiltrado[contId] = filtrados;
+
+      const thead = `<thead><tr>${columnas.map(c => {
+        const activo = filtros[c] ? 'activo' : '';
+        return `<th class="p-2">${c} <span class="filtro-icono ${activo}" onclick="abrirFiltroColumna('${contId}','${c}', this)">▾</span></th>`;
+      }).join('')}</tr></thead>`;
+
+      const filas = filtrados.slice(0, 300).map(fila => {
+        return `<tr class="hover:bg-slate-800/50">${columnas.map(c => {
+          let v = fila[c];
+          if (c === 'estado_cruce') return `<td class="p-2 whitespace-nowrap">${badgeEstadoCruce(v)}</td>`;
+          if (v === null || v === undefined) v = '';
+          return `<td class="p-2 whitespace-nowrap text-gray-300">${String(v).slice(0,120)}</td>`;
+        }).join('')}</tr>`;
+      }).join('');
+
+      cont.innerHTML = thead + `<tbody>${filas || `<tr><td class="p-4 text-center text-gray-500" colspan="${columnas.length}">Sin resultados con esos filtros.</td></tr>`}</tbody>`;
+
+      const contador = document.getElementById('estado-tabla');
+      if (contador) { contador.classList.remove('hidden'); contador.innerText = `${filtrados.length.toLocaleString()} de ${datosBase.length.toLocaleString()} registros (mostrando máx. 300 en pantalla; XLSX exporta todo lo filtrado)`; }
+    }
+
+    // ---- POPUP DE FILTRO ESTILO EXCEL ----
+    let cfpState = null;
+
+    function abrirFiltroColumna(contId, col, btnEl) {
+      const datosBase = window.__datosBase[contId] || [];
+      const valoresUnicos = Array.from(new Set(datosBase.map(f => valorMostrable(f[col])))).sort((a,b)=>a.localeCompare(b));
+      const actual = filtroColState[contId][col];
+      const seleccion = actual ? new Set(actual) : new Set(valoresUnicos); // sin filtro = todos marcados
+
+      cfpState = { contId, col, valoresUnicos, seleccion };
+
+      const popup = document.getElementById('col-filter-popup');
+      const rect = btnEl.getBoundingClientRect();
+      popup.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+      popup.style.left = Math.max(8, rect.left + window.scrollX - 200) + 'px';
+      popup.classList.remove('hidden');
+      document.getElementById('cfp-search').value = '';
+      cfpPintarLista(valoresUnicos);
+    }
+
+    function cfpPintarLista(valores) {
+      const lista = document.getElementById('cfp-lista');
+      lista.innerHTML = valores.map(v => {
+        const checked = cfpState.seleccion.has(v) ? 'checked' : '';
+        const safe = v.replace(/"/g, '&quot;');
+        return `<label class="cfp-item"><input type="checkbox" data-val="${safe}" ${checked} onchange="cfpToggle(this)"> <span class="truncate">${v}</span></label>`;
+      }).join('');
+    }
+
+    function cfpToggle(input) {
+      const v = input.dataset.val;
+      if (input.checked) cfpState.seleccion.add(v);
+      else cfpState.seleccion.delete(v);
+    }
+
+    function cfpFiltrarLista() {
+      const q = document.getElementById('cfp-search').value.toLowerCase().trim();
+      const filtrados = cfpState.valoresUnicos.filter(v => v.toLowerCase().includes(q));
+      cfpPintarLista(filtrados);
+    }
+
+    function cfpSeleccionarTodos() {
+      cfpState.valoresUnicos.forEach(v => cfpState.seleccion.add(v));
+      cfpFiltrarLista();
+    }
+    function cfpBorrar() {
+      cfpState.seleccion.clear();
+      cfpFiltrarLista();
+    }
+    function cfpCancelar() {
+      document.getElementById('col-filter-popup').classList.add('hidden');
+      cfpState = null;
+    }
+    function cfpAceptar() {
+      const { contId, col, valoresUnicos, seleccion } = cfpState;
+      if (seleccion.size === valoresUnicos.length || seleccion.size === 0) {
+        delete filtroColState[contId][col]; // todos o ninguno = sin filtro (evita tabla vacía por error)
+      } else {
+        filtroColState[contId][col] = new Set(seleccion);
+      }
+      document.getElementById('col-filter-popup').classList.add('hidden');
+      cfpState = null;
+      repintar(contId);
+    }
+    document.addEventListener('click', (e) => {
+      const popup = document.getElementById('col-filter-popup');
+      if (!popup.classList.contains('hidden') && !popup.contains(e.target) && !e.target.classList.contains('filtro-icono')) {
+        popup.classList.add('hidden');
+        cfpState = null;
+      }
+    });
+
+    // ==================================================================
+    // EXPORTAR XLSX
+    // ==================================================================
+    function exportarXLSX(contId, nombre) {
+      const datos = window.__ultimoFiltrado[contId] || cache[nombre] || [];
+      if (!datos.length) return alert("No hay datos para exportar.");
+      const ws = XLSX.utils.json_to_sheet(datos);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, nombre.slice(0, 30));
+      XLSX.writeFile(wb, `${nombre}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function exportarXLSXGenerico(datos, nombre) {
+      if (!datos || datos.length === 0) return alert("No hay datos para exportar.");
+      const ws = XLSX.utils.json_to_sheet(datos);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, nombre.slice(0, 30));
+      XLSX.writeFile(wb, `${nombre}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    // ==================================================================
+    // MOTOR DE CRUCE
+    // ==================================================================
+    function normalizarTel(tel) {
+      if (!tel) return '';
+      return String(tel).replace(/\D/g, '').slice(-8);
+    }
+
+    function parseFechaHora(fecha, hora) {
+      if (!fecha) return null;
+      let base = String(fecha).trim();
+      base = base.includes('T') ? base.split('T')[0] : base;
+      let h = hora ? String(hora).trim() : '00:00:00';
+      if (h.length === 5) h += ':00';
+      const d = new Date(`${base}T${h}`);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    function mismoDia(a, b) {
+      return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    }
+
+    async function calcularCruce(forzar) {
+      // Nota: recalculamos siempre (no usamos caché) para que el filtro de fecha
+      // global se refleje al instante al cambiar de vista o presionar "Aplicar".
+      await Promise.all([
+        asegurarCache('leads', 'fecha_agendada'),
+        asegurarCache('llamadas', 'fecha'),
+        asegurarCache('historiales', 'fecha'),
+        asegurarCache('ejecutivos', null)
+      ]);
+
+      let leads = cache.leads.filter(l => (l.tipo_reunion || '').toLowerCase().includes('llamada'));
+      leads = filtrarPorFechaGlobal(leads, 'fecha_agendada');
+      const ahora = new Date();
+
+      const resultado = leads.map(lead => {
+        const telLead = normalizarTel(lead.telefono);
+        const progr = parseFechaHora(lead.fecha_agendada, lead.hora_agendada);
+        const ejec = cache.ejecutivos.find(e => (e.nombre_ejecutivo || '').trim().toLowerCase() === (lead.asesor_nombre || '').trim().toLowerCase());
+        const usuario = ejec ? ejec.usuario : null;
+
+        const candPBX = cache.llamadas
+          .filter(c => normalizarTel(c.destino) === telLead && telLead && (!usuario || c.nombre === usuario))
+          .map(c => ({ fuente: 'PBX', fechaHora: c.fecha_hora ? new Date(c.fecha_hora) : null, raw: c }));
+
+        const candCel = cache.historiales
+          .filter(c => normalizarTel(c.destino) === telLead && telLead && (!usuario || c.usuario === usuario) && (c.tipo || '').toLowerCase() === 'saliente')
+          .map(c => {
+            const fBase = c.fecha ? String(c.fecha).split('T')[0] : null;
+            const fh = fBase && c.hora ? new Date(`${fBase}T${c.hora}`) : null;
+            return { fuente: 'Celular', fechaHora: fh, raw: c };
+          });
+
+        const candidatas = [...candPBX, ...candCel].filter(c => c.fechaHora && !isNaN(c.fechaHora.getTime()));
+
+        let estado = 'Sin llamada';
+        let coincidencia = null;
+        let diferenciaMin = null;
+
+        if (progr && candidatas.length) {
+          const delDia = candidatas.filter(c => mismoDia(c.fechaHora, progr));
+          if (delDia.length) {
+            delDia.sort((a, b) => Math.abs(a.fechaHora - progr) - Math.abs(b.fechaHora - progr));
+            coincidencia = delDia[0];
+            diferenciaMin = Math.round(Math.abs(coincidencia.fechaHora - progr) / 60000);
+            estado = diferenciaMin <= 5 ? 'Cumplió' : 'Mismo día fuera horario';
+          } else {
+            candidatas.sort((a, b) => Math.abs(a.fechaHora - progr) - Math.abs(b.fechaHora - progr));
+            coincidencia = candidatas[0];
+            estado = 'Llamó en otra fecha';
+          }
+        } else if (progr) {
+          const limite = new Date(progr.getTime() + 5 * 60000);
+          estado = ahora < limite ? 'Pendiente' : 'Sin llamada';
+        }
+
+        return {
+          pais: lead.pais || 'N/D',
+          ejecutivo: lead.asesor_nombre || 'Sin asignar',
+          codigo_prospecto: lead.codigo_prospecto,
+          lead: lead.nombre_prospecto,
+          telefono: lead.telefono,
+          fecha_reunion: lead.fecha_agendada,
+          hora_reunion: lead.hora_agendada,
+          status_lead: lead.status,
+          opportunity_stage: lead.opportunity_stage,
+          estado_cruce: estado,
+          diferencia_min: diferenciaMin,
+          fuente_llamada: coincidencia ? coincidencia.fuente : '',
+          fecha_llamada: coincidencia && coincidencia.fechaHora ? coincidencia.fechaHora.toISOString() : '',
+          catalogo_ok: ejec ? 'Sí' : 'No'
+        };
+      });
+
+      cruceCache = resultado;
+      return resultado;
+    }
+
+    function agregar(cruce, claveFn) {
+      const grupos = {};
+      cruce.forEach(r => {
+        const k = claveFn(r);
+        if (!grupos[k.key]) grupos[k.key] = { ...k.datos, leads: 0, evaluados: 0, cumplieron: 0, fuera_horario: 0, otra_fecha: 0, sin_llamada: 0, pendientes: 0 };
+        const g = grupos[k.key];
+        g.leads++; g.evaluados++;
+        if (r.estado_cruce === 'Cumplió') g.cumplieron++;
+        else if (r.estado_cruce === 'Mismo día fuera horario') g.fuera_horario++;
+        else if (r.estado_cruce === 'Llamó en otra fecha') g.otra_fecha++;
+        else if (r.estado_cruce === 'Sin llamada') g.sin_llamada++;
+        else if (r.estado_cruce === 'Pendiente') g.pendientes++;
+      });
+      return Object.values(grupos).map(g => {
+        const noCumplieron = g.fuera_horario + g.otra_fecha + g.sin_llamada;
+        const base = g.evaluados - g.pendientes;
+        const pctNum = base > 0 ? (g.cumplieron / base) * 100 : 0;
+        const clas = claseClasificacion(pctNum, g.evaluados);
+        return {
+          ...g,
+          no_cumplieron: noCumplieron,
+          pct_cumplimiento: base > 0 ? pctNum.toFixed(1) + '%' : '—',
+          clasificacion_html: `<span class="badge ${clas.clase}">${clas.texto}</span>`
+        };
+      });
+    }
+
+    // ==================================================================
+    // VISTA: RESUMEN POR PAIS
+    // ==================================================================
+    async function renderResumenPais(main) {
+      main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-gray-300">🌎 Resumen de Cumplimiento por País</h2>
+          <div class="flex gap-2">
+            <button onclick="calcularCruce(true).then(()=>renderResumenPais(document.getElementById('main-content')))" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recalcular</button>
+            <button id="btn-exp-pais" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+          </div>
+        </div>
+        <p class="text-[11px] text-gray-500 mb-3">Solo leads con tipo de reunión "Llamada Telefónica". Tolerancia ±5 min. Teléfonos comparados por los últimos 8 dígitos.</p>
+        <div id="tabla-resumen-pais" class="overflow-auto text-xs"><span class="text-cyan-400">Calculando cruce...</span></div>
+      </div>`;
+
+      const cruce = await calcularCruce();
+      const datos = agregar(cruce, r => ({ key: r.pais, datos: { pais: r.pais } }));
+      pintarResumenSimple('tabla-resumen-pais', datos, ['pais', 'leads', 'evaluados', 'cumplieron', 'fuera_horario', 'otra_fecha', 'sin_llamada', 'pendientes', 'no_cumplieron', 'pct_cumplimiento', 'clasificacion_html']);
+      document.getElementById('btn-exp-pais').onclick = () => exportarXLSXGenerico(datos.map(({clasificacion_html, ...r}) => r), 'resumen_por_pais');
+    }
+
+    // ==================================================================
+    // VISTA: RESUMEN POR EJECUTIVO
+    // ==================================================================
+    async function renderResumenEjecutivo(main) {
+      main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-gray-300">🧑‍💼 Resumen de Cumplimiento por Ejecutivo</h2>
+          <div class="flex gap-2">
+            <button onclick="calcularCruce(true).then(()=>renderResumenEjecutivo(document.getElementById('main-content')))" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recalcular</button>
+            <button id="btn-exp-ejec" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+          </div>
+        </div>
+        <div id="tabla-resumen-ejec" class="overflow-auto text-xs"><span class="text-cyan-400">Calculando cruce...</span></div>
+      </div>`;
+
+      const cruce = await calcularCruce();
+      const datos = agregar(cruce, r => ({ key: r.pais + '|' + r.ejecutivo, datos: { pais: r.pais, ejecutivo: r.ejecutivo } }));
+      pintarResumenSimple('tabla-resumen-ejec', datos, ['pais', 'ejecutivo', 'leads', 'evaluados', 'cumplieron', 'fuera_horario', 'otra_fecha', 'sin_llamada', 'pendientes', 'no_cumplieron', 'pct_cumplimiento', 'clasificacion_html']);
+      document.getElementById('btn-exp-ejec').onclick = () => exportarXLSXGenerico(datos.map(({clasificacion_html, ...r}) => r), 'resumen_por_ejecutivo');
+    }
+
+    function pintarResumenSimple(contId, datos, columnas) {
+      const cont = document.getElementById(contId);
+      if (!datos.length) { cont.innerHTML = '<p class="text-gray-500 p-4">Sin datos.</p>'; return; }
+      const thead = `<tr>${columnas.map(c => `<th class="p-2">${c==='clasificacion_html'?'clasificación':c.replace(/_/g,' ')}</th>`).join('')}</tr>`;
+      const filas = datos.map(f => `<tr class="hover:bg-slate-800/50">${columnas.map(c => `<td class="p-2 whitespace-nowrap text-gray-300">${f[c]}</td>`).join('')}</tr>`).join('');
+      cont.innerHTML = `<table class="w-full text-left"><thead>${thead}</thead><tbody>${filas}</tbody></table>`;
+    }
+
+    // ==================================================================
+    // VISTA: DETALLE DEL CRUCE (LLAMADAS)
+    // ==================================================================
+    async function renderResumenDetalle(main) {
+      main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-gray-300">🔍 Detalle del Cruce por Lead (Llamadas)</h2>
+          <div class="flex gap-2">
+            <button onclick="calcularCruce(true).then(()=>renderResumenDetalle(document.getElementById('main-content')))" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recalcular</button>
+            <button onclick="exportarXLSX('tabla-detalle-cruce','detalle_cruce')" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+          </div>
+        </div>
+        <span id="estado-tabla" class="text-xs text-cyan-400">Calculando cruce...</span>
+        <div class="overflow-auto mt-2" style="max-height: 68vh;">
+          <table class="w-full text-left text-xs" id="tabla-detalle-cruce"></table>
+        </div>
+      </div>`;
+
+      const cruce = await calcularCruce();
+      document.getElementById('estado-tabla').classList.add('hidden');
+      pintarTablaConFiltros('tabla-detalle-cruce', cruce);
+    }
+
+    // ==================================================================
+    // TEAMS: no tenemos fuente real de reuniones Teams en Supabase todavía,
+    // así que se listan los leads con tipo_reunion distinto de "Llamada
+    // Telefonica" (Presencial, Teams/Virtual, etc). Sin una fuente de datos
+    // de Teams, se marcan como "Sin evidencia Teams" (igual que en tu Excel
+    // para la mayoría de filas), salvo que la reunión aún no haya pasado
+    // (=> Pendiente).
+    // ==================================================================
+    async function calcularTeams(forzar) {
+      await asegurarCache('leads', 'fecha_agendada');
+      let leads = cache.leads.filter(l => !(l.tipo_reunion || '').toLowerCase().includes('llamada'));
+      leads = filtrarPorFechaGlobal(leads, 'fecha_agendada');
+      const ahora = new Date();
+      return leads.map(lead => {
+        const progr = parseFechaHora(lead.fecha_agendada, lead.hora_agendada);
+        let estado = 'Sin evidencia Teams';
+        if (progr) {
+          const limite = new Date(progr.getTime() + 5 * 60000);
+          if (ahora < limite) estado = 'Pendiente';
+        }
+        return {
+          pais: lead.pais || 'N/D',
+          ejecutivo: lead.asesor_nombre || 'Sin asignar',
+          codigo_prospecto: lead.codigo_prospecto,
+          lead: lead.nombre_prospecto,
+          fecha_reunion: lead.fecha_agendada,
+          hora_reunion: lead.hora_agendada,
+          tipo_reunion: lead.tipo_reunion,
+          estado_cruce: estado
+        };
+      });
+    }
+
+    async function renderResumenTeams(main) {
+      main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-gray-300">👥 Resumen de Reuniones TEAMS por Ejecutivo</h2>
+          <div class="flex gap-2">
+            <button onclick="renderResumenTeams(document.getElementById('main-content'))" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recalcular</button>
+            <button id="btn-exp-teams" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+          </div>
+        </div>
+        <p class="text-[11px] text-gray-500 mb-3">Leads con reunión Presencial / Virtual (no telefónica). Aún no tenemos una fuente de datos de Teams en Supabase, por eso se listan como "Sin evidencia Teams" salvo que estén pendientes.</p>
+        <div id="tabla-resumen-teams" class="overflow-auto text-xs"><span class="text-cyan-400">Calculando...</span></div>
+      </div>`;
+
+      const registros = await calcularTeams();
+      const agrupado = agregarTeams(registros);
+      pintarResumenSimple('tabla-resumen-teams', agrupado, ['pais', 'ejecutivo', 'leads', 'evaluados', 'pendientes', 'clasificacion_html']);
+      document.getElementById('btn-exp-teams').onclick = () => exportarXLSXGenerico(agrupado.map(({clasificacion_html, ...r}) => r), 'resumen_teams');
+    }
+
+    function agregarTeams(registros) {
+      const grupos = {};
+      registros.forEach(r => {
+        const key = r.pais + '|' + r.ejecutivo;
+        if (!grupos[key]) grupos[key] = { pais: r.pais, ejecutivo: r.ejecutivo, leads: 0, evaluados: 0, pendientes: 0 };
+        const g = grupos[key];
+        g.leads++;
+        if (r.estado_cruce === 'Pendiente') g.pendientes++;
+        else g.evaluados++;
+      });
+      return Object.values(grupos).map(g => ({
+        ...g,
+        clasificacion_html: g.evaluados > 0
+          ? `<span class="badge bg-red-900 text-red-300">Sin evidencia Teams</span>`
+          : `<span class="badge bg-sky-900 text-sky-300">Solo pendientes</span>`
+      }));
+    }
+
+    async function renderDetalleTeams(main) {
+      main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-gray-300">📋 Detalle de Reuniones vía Teams</h2>
+          <div class="flex gap-2">
+            <button onclick="renderDetalleTeams(document.getElementById('main-content'))" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recalcular</button>
+            <button onclick="exportarXLSX('tabla-detalle-teams','detalle_teams')" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+          </div>
+        </div>
+        <span id="estado-tabla" class="text-xs text-cyan-400">Calculando...</span>
+        <div class="overflow-auto mt-2" style="max-height: 68vh;">
+          <table class="w-full text-left text-xs" id="tabla-detalle-teams"></table>
+        </div>
+      </div>`;
+
+      const registros = await calcularTeams();
+      document.getElementById('estado-tabla').classList.add('hidden');
+      pintarTablaConFiltros('tabla-detalle-teams', registros);
+    }
+
+    // ==================================================================
+    // INICIO
+    // ==================================================================
+    window.addEventListener('DOMContentLoaded', async () => {
+      supabaseClient = window.supabase.createClient(SB_URL, SB_KEY);
+      irA('reg-pbx');
+      await actualizarContadores();
+      await asegurarCache('llamadas', 'fecha');
+      pintarTablaConFiltros('tabla-dinamica', cache['llamadas']);
+    });
+  </script>
+</body>
+</html>
