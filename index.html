@@ -301,15 +301,25 @@
     // ==================================================================
     function badgeEstadoCruce(estado) {
       const map = {
-        'Cumplió':                     'bg-emerald-900 text-emerald-300',
-        'Mismo día fuera horario':     'bg-amber-900 text-amber-300',
-        'Llamó en otra fecha':         'bg-orange-900 text-orange-300',
-        'Sin llamada':                 'bg-red-900 text-red-300',
-        'Pendiente':                   'bg-sky-900 text-sky-300',
-        'Sin evidencia Teams':         'bg-red-900 text-red-300'
+        'Cumplió':                              'bg-emerald-900 text-emerald-300',
+        'Mismo día fuera horario':               'bg-amber-900 text-amber-300',
+        'Llamó en otra fecha':                   'bg-orange-900 text-orange-300',
+        'Sin llamada':                           'bg-red-900 text-red-300',
+        'Pendiente':                             'bg-sky-900 text-sky-300',
+        'Sin evidencia Teams':                   'bg-red-900 text-red-300',
+        // variantes en texto largo (columna "Resultado" de Detalle Llamadas)
+        'Cumplió fecha y horario':                'bg-emerald-900 text-emerald-300',
+        'Llamó el mismo día fuera de horario':    'bg-amber-900 text-amber-300',
+        'Sin llamada encontrada':                 'bg-red-900 text-red-300',
+        'Pendiente de evaluar':                   'bg-sky-900 text-sky-300'
       };
       const cls = map[estado] || 'bg-gray-700 text-gray-300';
       return `<span class="badge ${cls}">${estado}</span>`;
+    }
+
+    function badgeCumplio(v) {
+      const map = { 'Sí': 'bg-emerald-900 text-emerald-300', 'No': 'bg-red-900 text-red-300', 'Pendiente': 'bg-sky-900 text-sky-300' };
+      return `<span class="badge ${map[v] || 'bg-gray-700 text-gray-300'}">${v}</span>`;
     }
 
     function claseClasificacion(pctNum, evaluados) {
@@ -412,7 +422,8 @@
       const filas = filtrados.slice(0, 300).map(fila => {
         return `<tr class="hover:bg-slate-800/50">${columnas.map(c => {
           let v = fila[c];
-          if (c === 'estado_cruce') return `<td class="p-2 whitespace-nowrap">${badgeEstadoCruce(v)}</td>`;
+          if (c === 'estado_cruce' || c === 'Resultado') return `<td class="p-2 whitespace-nowrap">${badgeEstadoCruce(v)}</td>`;
+          if (c === 'Cumplió') return `<td class="p-2 whitespace-nowrap">${badgeCumplio(v)}</td>`;
           if (v === null || v === undefined) v = '';
           return `<td class="p-2 whitespace-nowrap text-gray-300">${String(v).slice(0,120)}</td>`;
         }).join('')}</tr>`;
@@ -537,6 +548,28 @@
       return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
     }
 
+    // Convierte "00:02:31" a segundos. Usado para la duración de llamadas
+    // celulares (guardada como texto hh:mm:ss en `historiales`).
+    function hhmmssASegundos(str) {
+      if (!str) return null;
+      const partes = String(str).split(':').map(Number);
+      if (partes.some(isNaN)) return null;
+      if (partes.length === 3) return partes[0] * 3600 + partes[1] * 60 + partes[2];
+      if (partes.length === 2) return partes[0] * 60 + partes[1];
+      return null;
+    }
+
+    function formatearFechaCorta(d) {
+      if (!d) return '';
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      return `${dd}/${mm}/${d.getFullYear()}`;
+    }
+    function formatearHoraCorta(d) {
+      if (!d) return '';
+      return d.toTimeString().slice(0, 8);
+    }
+
     async function calcularCruce(forzar) {
       await Promise.all([
         asegurarCache('leads', 'fecha_agendada'),
@@ -571,7 +604,7 @@
 
         let estado = 'Sin llamada';
         let coincidencia = null;
-        let diferenciaMin = null;
+        let diferenciaMin = null; // sin signo, redondeado — se usa para la clasificación (Cumplió si <=5)
 
         if (progr && candidatas.length) {
           const delDia = candidatas.filter(c => mismoDia(c.fechaHora, progr));
@@ -590,20 +623,59 @@
           estado = ahora < limite ? 'Pendiente' : 'Sin llamada';
         }
 
+        // Diferencia con signo y un decimal (coincidencia - programado), igual que en
+        // el reporte de referencia: negativo = llamó antes de la hora citada.
+        const diferenciaMinFirmada = coincidencia && progr
+          ? Math.round(((coincidencia.fechaHora - progr) / 60000) * 10) / 10
+          : null;
+
+        const RESULTADO_TEXTO = {
+          'Cumplió': 'Cumplió fecha y horario',
+          'Mismo día fuera horario': 'Llamó el mismo día fuera de horario',
+          'Llamó en otra fecha': 'Llamó en otra fecha',
+          'Sin llamada': 'Sin llamada encontrada',
+          'Pendiente': 'Pendiente de evaluar'
+        };
+        const cumplioTexto = estado === 'Cumplió' ? 'Sí' : (estado === 'Pendiente' ? 'Pendiente' : 'No');
+
+        // Duración de la llamada encontrada, normalizada a segundos sin importar
+        // si viene de PBX (duracion_segundos) o Celular (texto "hh:mm:ss").
+        let duracionSeg = null;
+        let estadoTipo = '';
+        if (coincidencia) {
+          if (coincidencia.fuente === 'PBX') {
+            duracionSeg = coincidencia.raw.duracion_segundos != null ? Number(coincidencia.raw.duracion_segundos) : hhmmssASegundos(coincidencia.raw.duracion_hh_mm_ss);
+            estadoTipo = coincidencia.raw.estado || '';
+          } else {
+            duracionSeg = hhmmssASegundos(coincidencia.raw.duracion);
+            estadoTipo = (coincidencia.raw.tipo || '').toUpperCase();
+          }
+        }
+
         return {
           pais: lead.pais || 'N/D',
           ejecutivo: lead.asesor_nombre || 'Sin asignar',
           codigo_prospecto: lead.codigo_prospecto,
           lead: lead.nombre_prospecto,
           telefono: lead.telefono,
+          telefono_comparado: telLead || '',
           fecha_reunion: lead.fecha_agendada,
           hora_reunion: lead.hora_agendada,
           status_lead: lead.status,
           opportunity_stage: lead.opportunity_stage,
           estado_cruce: estado,
+          resultado_texto: RESULTADO_TEXTO[estado] || estado,
+          cumplio_texto: cumplioTexto,
           diferencia_min: diferenciaMin,
+          diferencia_min_firmada: diferenciaMinFirmada,
           fuente_llamada: coincidencia ? coincidencia.fuente : '',
           fecha_llamada: coincidencia && coincidencia.fechaHora ? coincidencia.fechaHora.toISOString() : '',
+          fecha_llamada_corta: coincidencia && coincidencia.fechaHora ? formatearFechaCorta(coincidencia.fechaHora) : '',
+          hora_llamada_corta: coincidencia && coincidencia.fechaHora ? formatearHoraCorta(coincidencia.fechaHora) : '',
+          duracion_seg: duracionSeg,
+          estado_tipo: estadoTipo,
+          intentos_mismo_dia: progr ? candidatas.filter(c => mismoDia(c.fechaHora, progr)).length : 0,
+          intentos_totales: candidatas.length,
           catalogo_ok: ejec ? 'Sí' : 'No'
         };
       });
@@ -970,12 +1042,13 @@
     async function renderResumenDetalle(main) {
       main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
         <div class="flex justify-between items-center mb-3">
-          <h2 class="text-sm font-bold text-gray-300">🔍 Detalle del Cruce por Lead (Llamadas)</h2>
+          <h2 class="text-sm font-bold text-gray-300">🔍 Detalle Llamadas</h2>
           <div class="flex gap-2">
             <button onclick="calcularCruce(true).then(()=>renderResumenDetalle(document.getElementById('main-content')))" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded">🔄 Recalcular</button>
-            <button onclick="exportarXLSX('tabla-detalle-cruce','detalle_cruce')" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
+            <button onclick="exportarXLSX('tabla-detalle-cruce','detalle_llamadas')" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
           </div>
         </div>
+        <p class="text-[11px] text-gray-500 mb-2">Un renglón por cada lead telefónico evaluado. Mismos datos y reglas que "Resumen Llamadas" (últimos 8 dígitos del teléfono, ejecutivo por extensión/usuario, ±5 min de tolerancia).</p>
         <span id="estado-tabla" class="text-xs text-cyan-400">Calculando cruce...</span>
         <div class="overflow-auto mt-2" style="max-height: 68vh;">
           <table class="w-full text-left text-xs" id="tabla-detalle-cruce"></table>
@@ -983,8 +1056,32 @@
       </div>`;
 
       const cruce = await calcularCruce();
-      document.getElementById('estado-tabla').classList.add('hidden');
-      pintarTablaConFiltros('tabla-detalle-cruce', cruce);
+
+      // Mismo orden y nombres de columna que el reporte de referencia en Excel.
+      const detalle = cruce.map(r => ({
+        'País': r.pais,
+        'Ejecutivo': r.ejecutivo,
+        'Lead': r.codigo_prospecto,
+        'Cliente': r.lead,
+        'Teléfono CRM': r.telefono,
+        'Teléfono comparado': r.telefono_comparado,
+        'Fecha reunión': r.fecha_reunion,
+        'Hora reunión': r.hora_reunion,
+        'Resultado': r.resultado_texto,
+        'Cumplió': r.cumplio_texto,
+        'Fuente': r.fuente_llamada,
+        'Fecha llamada': r.fecha_llamada_corta,
+        'Hora llamada': r.hora_llamada_corta,
+        'Diferencia (min)': r.diferencia_min_firmada,
+        'Duración (seg)': r.duracion_seg,
+        'Estado/tipo': r.estado_tipo,
+        'Intentos mismo día': r.intentos_mismo_dia,
+        'Intentos totales': r.intentos_totales,
+        'Datos en catálogo': r.catalogo_ok
+      }));
+
+      document.getElementById('estado-tabla').classList.remove('hidden');
+      pintarTablaConFiltros('tabla-detalle-cruce', detalle);
     }
 
     // ==================================================================
