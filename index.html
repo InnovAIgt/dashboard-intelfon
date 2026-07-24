@@ -39,6 +39,7 @@
       </div>
       <nav class="p-3 space-y-1 flex-1">
         <button class="sidebar-btn" data-view="config" onclick="irA('config')">⚙️ <span>Configuración</span></button>
+        <button class="sidebar-btn" data-view="criterios" onclick="irA('criterios')">📖 <span>Criterios</span></button>
 
         <button class="sidebar-btn" onclick="toggleSubmenu('submenu-registros')">🗂️ <span>Registros</span> <span class="ml-auto text-xs">▾</span></button>
         <div id="submenu-registros" class="space-y-0.5">
@@ -156,6 +157,7 @@
     function render() {
       const main = document.getElementById('main-content');
       if (vistaActual === 'config') return renderConfig(main);
+      if (vistaActual === 'criterios') return renderCriterios(main);
       if (vistaActual === 'reg-pbx') return renderRegistro(main, 'llamadas', 'Llamadas PBX', 'fecha');
       if (vistaActual === 'reg-cel') return renderRegistro(main, 'historiales', 'Llamadas Celular', 'fecha');
       if (vistaActual === 'reg-leads') return renderRegistro(main, 'leads', 'Leads Calificados', 'fecha_agendada');
@@ -191,6 +193,120 @@
           <button onclick="sincronizarAPI()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 text-xs rounded">⚡ Sincronizar API (Edge Function)</button>
           <button onclick="recargarTodoYContadores()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 text-xs rounded">🔄 Recargar todos los datos</button>
           <span id="estado-config" class="text-xs text-cyan-400 hidden">Procesando...</span>
+        </div>`;
+    }
+
+    // ==================================================================
+    // VISTA: CRITERIOS (documentación viva de las reglas del dashboard)
+    // ==================================================================
+    function renderCriterios(main) {
+      const seccion = (titulo, icono, contenidoHtml) => `
+        <div class="bg-[#111827] border border-gray-800 rounded-lg overflow-hidden">
+          <div class="bg-[#1e293b] px-4 py-2.5 flex items-center gap-2">
+            <span class="text-base">${icono}</span>
+            <h3 class="text-xs font-bold text-gray-200 uppercase tracking-wider">${titulo}</h3>
+          </div>
+          <div class="p-4 text-xs text-gray-300 space-y-3 leading-relaxed">${contenidoHtml}</div>
+        </div>`;
+
+      const filaCol = (nombre, explicacion) => `
+        <div class="flex gap-3 py-1.5 border-b border-gray-800/60 last:border-0">
+          <span class="text-cyan-400 font-mono font-bold shrink-0 w-44">${nombre}</span>
+          <span class="text-gray-400">${explicacion}</span>
+        </div>`;
+
+      main.innerHTML = `
+        <div class="max-w-4xl space-y-4">
+
+          <div class="bg-[#0e7490]/10 border border-cyan-900 rounded-lg p-4">
+            <h2 class="text-sm font-bold text-cyan-300 mb-1">📖 Criterios de clasificación del dashboard</h2>
+            <p class="text-xs text-gray-400">Esta pantalla explica, con datos reales del sistema (no es un texto fijo), qué compara el motor de cruce, de dónde sale cada estado y qué significa cada columna que ves en los resúmenes. Sirve como referencia para entender por qué un lead cae en un grupo u otro.</p>
+          </div>
+
+          ${seccion('¿Qué es el "cruce" y qué leads entran?', '🧩', `
+            <p>El <strong>cruce</strong> es el proceso que compara cada <em>lead</em> (de la tabla <code>leads</code>) contra las llamadas registradas (tablas <code>llamadas</code> = PBX y <code>historiales</code> = celular) para ver si el ejecutivo llamó a tiempo.</p>
+            <p>Solo entran al cruce de <strong>Resumen País</strong>, <strong>Resumen Llamadas</strong> y <strong>Detalle Llamadas</strong> los leads cuyo campo <code>tipo_reunion</code> contiene la palabra <strong>"Llamada"</strong> (ej. "Llamada Telefónica"). Los leads con reunión Presencial o Virtual van a la sección <strong>TEAMS</strong> en su lugar.</p>
+            <p>Si aplicaste el filtro de fecha global (arriba de la pantalla), el cruce solo considera los leads cuya <code>fecha_agendada</code> cae dentro de ese rango.</p>
+          `)}
+
+          ${seccion('Cómo se hace el emparejamiento (matching)', '🔗', `
+            <p><strong>Teléfono:</strong> se comparan solo los <strong>últimos 8 dígitos</strong> del teléfono del lead contra el campo <code>destino</code> de la llamada (se descarta código de país, guiones, espacios, etc.). Esto evita que formatos distintos ("+503 7777-1234" vs "77771234") se traten como diferentes.</p>
+            <p><strong>Ejecutivo:</strong> se busca el nombre del asesor del lead (<code>asesor_nombre</code>) dentro del <strong>Catálogo de Ejecutivos</strong>. Si hay coincidencia exacta de nombre, se obtiene su <code>usuario</code>, y solo se aceptan como candidatas las llamadas PBX cuyo campo <code>nombre</code> coincida con ese usuario, o las llamadas de celular cuyo campo <code>usuario</code> coincida. Si el ejecutivo <strong>no está en el catálogo</strong>, el cruce igual busca por teléfono, sin filtrar por usuario (por eso columnas como "Datos en catálogo" existen: para avisar cuándo el emparejamiento fue menos estricto).</p>
+            <p><strong>Tipo de llamada (celular):</strong> de la tabla <code>historiales</code> solo se toman llamadas con <code>tipo = "saliente"</code> (llamadas hechas por el ejecutivo, no recibidas).</p>
+            <p><strong>Elegir la llamada correcta:</strong> entre todas las llamadas candidatas (mismo teléfono + mismo ejecutivo), primero se filtran las del <strong>mismo día</strong> que la reunión programada. Si hay varias ese día, se toma la <strong>más cercana en el tiempo</strong> a la hora agendada. Si no hay ninguna ese día, se toma la candidata más cercana de cualquier fecha (esto genera el estado "Llamó en otra fecha").</p>
+          `)}
+
+          ${seccion('Estados de cumplimiento (estado_cruce)', '🚦', `
+            <div class="space-y-2">
+              <div class="flex items-center gap-2">${badgeEstadoCruce('Cumplió')} <span class="text-gray-400">Hubo una llamada el mismo día agendado, con una diferencia de <strong>5 minutos o menos</strong> respecto a la hora agendada.</span></div>
+              <div class="flex items-center gap-2">${badgeEstadoCruce('Mismo día fuera horario')} <span class="text-gray-400">Hubo llamada el mismo día, pero la diferencia con la hora agendada fue <strong>mayor a 5 minutos</strong>.</span></div>
+              <div class="flex items-center gap-2">${badgeEstadoCruce('Llamó en otra fecha')} <span class="text-gray-400">No se encontró ninguna llamada el día de la reunión, pero sí existe una llamada al mismo teléfono/ejecutivo en <strong>otra fecha</strong>.</span></div>
+              <div class="flex items-center gap-2">${badgeEstadoCruce('Sin llamada')} <span class="text-gray-400">Ya pasó la hora agendada (+5 min de margen) y <strong>no se encontró ninguna llamada</strong> que coincida en teléfono y ejecutivo.</span></div>
+              <div class="flex items-center gap-2">${badgeEstadoCruce('Pendiente')} <span class="text-gray-400">La hora agendada (+5 min) <strong>todavía no ha llegado</strong> respecto al momento actual, así que aún no se puede evaluar si cumplió o no.</span></div>
+            </div>
+            <p class="pt-1">Los estados "Sin llamada" y "Pendiente" también aplican, con la misma lógica de tiempo, cuando el lead no trae fecha/hora agendada válida.</p>
+          `)}
+
+          ${seccion('% de cumplimiento y clasificación', '📊', `
+            <p>El <strong>% de cumplimiento</strong> se calcula así: <code>cumplieron ÷ evaluados</code>. Importante: <strong>los "Pendientes" no se incluyen ni en el numerador ni en el denominador</strong>, porque todavía no se puede saber si van a cumplir o no. Por eso "evaluados" = leads con estado ya definido (Cumplió, Mismo día fuera horario, Llamó en otra fecha o Sin llamada).</p>
+            <p><strong>No cumplieron</strong> = suma de "Mismo día fuera horario" + "Llamó en otra fecha" + "Sin llamada" (todo lo evaluado que no fue "Cumplió").</p>
+            <div class="space-y-2 pt-1">
+              <div class="flex items-center gap-2"><span class="badge bg-emerald-900 text-emerald-300">Buen cumplimiento</span> <span class="text-gray-400">% de cumplimiento <strong>≥ 70%</strong>.</span></div>
+              <div class="flex items-center gap-2"><span class="badge bg-amber-900 text-amber-300">Cumplimiento parcial</span> <span class="text-gray-400">% de cumplimiento <strong>entre 0% y 70%</strong> (mayor a 0, menor a 70).</span></div>
+              <div class="flex items-center gap-2"><span class="badge bg-red-900 text-red-300">Sin cumplimiento en horario</span> <span class="text-gray-400">Hay evaluados pero <strong>0% cumplió</strong> (ninguna llamada a tiempo).</span></div>
+              <div class="flex items-center gap-2"><span class="badge bg-gray-700 text-gray-300">Sin datos</span> <span class="text-gray-400">No hay ningún lead evaluado todavía (cero evaluados) en el rango de fecha seleccionado.</span></div>
+            </div>
+          `)}
+
+          ${seccion('Resumen País — cómo se agrupa', '🌎', `
+            <p>Agrupa el resultado del cruce por el campo <code>pais</code> que trae el <strong>lead</strong> (no el catálogo). Es la vista más rápida para ver el desempeño general por país. La fila "TOTAL" suma todos los países y recalcula el % sobre el total de evaluados.</p>
+            <p>La sección "Lectura ejecutiva" que aparece debajo de la tabla es texto generado automáticamente a partir de estos mismos números (no está escrito a mano): resume el resultado general, un renglón por país, y lista los leads que quedaron en estado "Pendiente".</p>
+          `)}
+
+          ${seccion('Resumen Llamadas (por ejecutivo) — cómo se agrupa', '🧑‍💼', `
+            <p>A diferencia de Resumen País, esta vista parte del <strong>Catálogo de Ejecutivos</strong>, no de los leads. Por eso aparecen <strong>todos</strong> los ejecutivos activos del catálogo aunque tengan 0 leads en el periodo, y el <strong>país</strong> mostrado es el país oficial registrado en el catálogo (más confiable que el país capturado en cada lead, que puede tener errores de digitación).</p>
+            <p>Si un lead trae un <code>asesor_nombre</code> que <strong>no coincide con ningún ejecutivo del catálogo</strong>, no se descarta ni se mezcla con otro ejecutivo: se muestra aparte en el bloque ⚠️ <strong>"Nombres en Leads sin coincidencia en el catálogo"</strong>, para que se pueda revisar y dar de alta al ejecutivo faltante.</p>
+          `)}
+
+          ${seccion('Columnas de los resúmenes agregados (País / Ejecutivo)', '🗂️', `
+            ${filaCol('País', 'País del lead (Resumen País) o país oficial del catálogo (Resumen Llamadas).')}
+            ${filaCol('Ejecutivo', 'Nombre del asesor tal como aparece en el catálogo de ejecutivos (o en el lead, si no está en catálogo).')}
+            ${filaCol('Leads / Leads telefónicos', 'Total de leads con tipo de reunión "Llamada" que entraron al cruce, incluyendo los pendientes.')}
+            ${filaCol('Evaluados', 'De esos leads, cuántos ya tienen un resultado definitivo (se excluyen los "Pendiente").')}
+            ${filaCol('Cumplieron', 'De los evaluados, cuántos tuvieron llamada el mismo día dentro de ±5 minutos de la hora agendada.')}
+            ${filaCol('Mismo día fuera horario', 'De los evaluados, cuántos tuvieron llamada el mismo día pero fuera de la tolerancia de 5 minutos.')}
+            ${filaCol('Otra fecha', 'De los evaluados, cuántos solo tienen llamada registrada en una fecha distinta a la agendada.')}
+            ${filaCol('Sin llamada', 'De los evaluados, cuántos no tienen ninguna llamada registrada que coincida en teléfono y ejecutivo.')}
+            ${filaCol('Pendientes', 'Leads cuya fecha/hora agendada (+5 min) todavía no ha pasado; no cuentan para el %.')}
+            ${filaCol('No cumplieron', 'Suma de "Mismo día fuera horario" + "Otra fecha" + "Sin llamada".')}
+            ${filaCol('% cumplimiento', 'Cumplieron ÷ Evaluados, en porcentaje. Muestra "—" cuando no hay evaluados.')}
+            ${filaCol('Clasificación', 'Etiqueta visual (Buen cumplimiento / Cumplimiento parcial / Sin cumplimiento en horario / Sin datos) derivada del % de cumplimiento, ver sección anterior.')}
+          `)}
+
+          ${seccion('Columnas de Detalle Llamadas (un renglón por lead)', '🔍', `
+            ${filaCol('Teléfono CRM', 'Teléfono tal como está guardado en el lead, sin normalizar.')}
+            ${filaCol('Teléfono comparado', 'Los últimos 8 dígitos usados realmente para el emparejamiento.')}
+            ${filaCol('Resultado', 'Versión en texto largo del estado_cruce (ej. "Cumplió fecha y horario").')}
+            ${filaCol('Cumplió', '"Sí" solo si el estado fue Cumplió; "Pendiente" si aún no se puede evaluar; "No" en cualquier otro caso.')}
+            ${filaCol('Fuente', 'De dónde salió la llamada encontrada: "PBX" (tabla llamadas) o "Celular" (tabla historiales). Vacío si no se encontró ninguna.')}
+            ${filaCol('Fecha / Hora llamada', 'Fecha y hora de la llamada que el sistema tomó como coincidencia (la más cercana a la hora agendada).')}
+            ${filaCol('Diferencia (min)', 'Diferencia en minutos entre la llamada encontrada y la hora agendada. Negativo = llamó antes de la hora citada; positivo = llamó después.')}
+            ${filaCol('Duración (seg)', 'Duración de la llamada encontrada, convertida siempre a segundos (venga de PBX en número o de celular en formato hh:mm:ss).')}
+            ${filaCol('Estado/tipo', 'Estado original de la llamada según su fuente (ej. estado de la PBX, o tipo "SALIENTE" en celular).')}
+            ${filaCol('Intentos mismo día', 'Cuántas llamadas candidatas (mismo teléfono/ejecutivo) hubo el mismo día de la reunión, no solo la que se tomó como coincidencia.')}
+            ${filaCol('Intentos totales', 'Cuántas llamadas candidatas hubo en total, sin importar la fecha.')}
+            ${filaCol('Datos en catálogo', '"Sí" si el asesor del lead se encontró en el catálogo de ejecutivos (emparejamiento más estricto, por usuario); "No" si no se encontró (se comparó solo por teléfono).')}
+          `)}
+
+          ${seccion('TEAMS (reuniones presenciales / virtuales)', '👥', `
+            <p>Incluye todos los leads cuyo <code>tipo_reunion</code> <strong>no</strong> contiene "Llamada" (presencial o virtual/Teams). Actualmente <strong>no existe una fuente de datos en Supabase</strong> que confirme si la reunión de Teams realmente ocurrió, por eso todos los leads evaluados aparecen como <strong>"Sin evidencia Teams"</strong> — no significa que no se haya realizado la reunión, sino que el sistema no tiene forma de comprobarlo todavía. Los que aún no llegan a su hora agendada (+5 min) se marcan como "Pendiente", igual que en llamadas.</p>
+          `)}
+
+          ${seccion('Filtro de fecha global y filtros de columna', '📅', `
+            <p>El <strong>filtro de fecha</strong> (arriba de cada pantalla) se aplica sobre la <code>fecha_agendada</code> del lead en las vistas de resumen y sobre la fecha correspondiente en los Registros (Llamadas PBX/Celular por su campo <code>fecha</code>, Leads por <code>fecha_agendada</code>). Se mantiene al cambiar de pantalla hasta que lo limpies.</p>
+            <p>El ícono ▾ en cada encabezado de columna de las tablas de <strong>Registros</strong> y <strong>Detalle</strong> abre un filtro estilo Excel: permite marcar/desmarcar valores específicos de esa columna para quedarte solo con las filas que te interesan, igual que en una hoja de cálculo.</p>
+          `)}
+
         </div>`;
     }
 
