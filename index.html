@@ -642,6 +642,141 @@
     // ==================================================================
     // VISTA: RESUMEN POR PAIS
     // ==================================================================
+    const NOMBRES_PAIS = {
+      SV: 'El Salvador', GT: 'Guatemala', HN: 'Honduras', NI: 'Nicaragua',
+      CR: 'Costa Rica', PA: 'Panamá', MX: 'México', US: 'Estados Unidos'
+    };
+    function nombrePais(codigo) {
+      if (!codigo || codigo === 'N/D') return 'Sin país';
+      return NOMBRES_PAIS[codigo] || codigo;
+    }
+
+    // Suma una fila TOTAL a partir de las filas ya agrupadas por país (mismas
+    // reglas de %: se excluyen los pendientes de la base del cálculo).
+    function calcularFilaTotal(datosPorPais) {
+      const total = { pais: 'TOTAL', leads: 0, evaluados: 0, cumplieron: 0, fuera_horario: 0, otra_fecha: 0, sin_llamada: 0, pendientes: 0, no_cumplieron: 0 };
+      datosPorPais.forEach(d => {
+        total.leads += d.leads; total.evaluados += d.evaluados; total.cumplieron += d.cumplieron;
+        total.fuera_horario += d.fuera_horario; total.otra_fecha += d.otra_fecha; total.sin_llamada += d.sin_llamada;
+        total.pendientes += d.pendientes; total.no_cumplieron += d.no_cumplieron;
+      });
+      const base = total.evaluados - total.pendientes;
+      const pctNum = base > 0 ? (total.cumplieron / base) * 100 : 0;
+      total.pct_num = pctNum;
+      total.pct_cumplimiento = base > 0 ? pctNum.toFixed(1) + '%' : '—';
+      const clas = claseClasificacion(pctNum, total.evaluados);
+      total.clasificacion_html = `<span class="badge ${clas.clase}">${clas.texto}</span>`;
+      return total;
+    }
+
+    // Texto narrativo, generado 100% desde los datos reales del cruce (nada hardcodeado):
+    // resultado general, un renglón por país, y el detalle de los leads aún pendientes.
+    function generarLecturaEjecutiva(datosPorPais, total, cruce) {
+      const lineas = [];
+      const baseTotal = total.evaluados - total.pendientes;
+      lineas.push({
+        titulo: 'Resultado general',
+        texto: baseTotal > 0
+          ? `${total.cumplieron} de ${baseTotal} leads evaluados cumplieron dentro de ±5 minutos (${total.pct_cumplimiento}).`
+          : `Aún no hay leads evaluados en el rango seleccionado.`
+      });
+
+      datosPorPais.forEach(p => {
+        const base = p.evaluados - p.pendientes;
+        lineas.push({
+          titulo: nombrePais(p.pais),
+          texto: base > 0
+            ? `${p.cumplieron} de ${base} evaluados cumplieron; ${p.fuera_horario} fuera de horario, ${p.otra_fecha} en otra fecha y ${p.sin_llamada} sin llamada.`
+            : `Sin leads evaluados en el rango seleccionado.`
+        });
+      });
+
+      const pendientes = cruce.filter(r => r.estado_cruce === 'Pendiente');
+      const textoPendientes = pendientes.length
+        ? pendientes.map(r => `${r.codigo_prospecto || 'Lead sin código'} de ${r.ejecutivo || 'ejecutivo sin asignar'}`).join(', ') + '.'
+        : 'Ninguno.';
+      lineas.push({ titulo: 'Pendientes', texto: textoPendientes });
+
+      return lineas;
+    }
+
+    function pctBadgeClase(pctNum, evaluados) {
+      return claseClasificacion(pctNum, evaluados).clase;
+    }
+
+    function pintarTablaResumenPais(datosPorPais, total, cruce) {
+      const cols = [
+        { key: 'pais',              label: 'País' },
+        { key: 'leads',             label: 'Leads telefónicos' },
+        { key: 'evaluados',         label: 'Evaluados' },
+        { key: 'cumplieron',        label: 'Cumplieron fecha y horario' },
+        { key: 'fuera_horario',     label: 'Mismo día fuera horario' },
+        { key: 'otra_fecha',        label: 'Llamó en otra fecha' },
+        { key: 'sin_llamada',       label: 'Sin llamada' },
+        { key: 'pendientes',        label: 'Pendientes' },
+        { key: 'no_cumplieron',     label: 'No cumplieron' },
+        { key: 'pct_cumplimiento',  label: '% cumplimiento' },
+        { key: 'clasificacion_html',label: 'Clasificación' },
+      ];
+
+      const filaHtml = (d, esTotal) => {
+        const base = esTotal ? 'bg-[#0f3a4a] text-white font-bold' : 'hover:bg-slate-800/50 text-gray-200';
+        return `<tr class="${base}">${cols.map(c => {
+          let v = d[c.key];
+          if (c.key === 'pais') v = esTotal ? 'TOTAL' : nombrePais(v);
+          const align = (c.key === 'pais') ? 'text-left' : 'text-right';
+          return `<td class="p-2.5 whitespace-nowrap ${align}">${v ?? ''}</td>`;
+        }).join('')}</tr>`;
+      };
+
+      const thead = `<tr>${cols.map(c => `<th class="p-2.5 ${c.key==='pais'?'text-left':'text-right'} text-[10px]">${c.label}</th>`).join('')}</tr>`;
+      const filas = datosPorPais.map(d => filaHtml(d, false)).join('') + filaHtml(total, true);
+
+      const tablaHtml = `
+        <div class="overflow-auto rounded-lg border border-gray-800">
+          <table class="w-full text-xs border-collapse">
+            <thead class="bg-[#0e7490] text-white">${thead}</thead>
+            <tbody class="divide-y divide-gray-800">${filas}</tbody>
+          </table>
+        </div>`;
+
+      const baseTotal = total.evaluados - total.pendientes;
+      const kpiHtml = `
+        <div class="grid grid-cols-4 gap-3 mt-4">
+          <div class="bg-[#0e7490]/10 border border-cyan-900 rounded-lg p-4 text-center">
+            <div class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Leads telefónicos</div>
+            <div class="text-3xl font-extrabold text-white mt-1">${total.leads}</div>
+          </div>
+          <div class="bg-[#0e7490]/10 border border-cyan-900 rounded-lg p-4 text-center">
+            <div class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Evaluados</div>
+            <div class="text-3xl font-extrabold text-white mt-1">${total.evaluados}</div>
+          </div>
+          <div class="bg-[#0e7490]/10 border border-cyan-900 rounded-lg p-4 text-center">
+            <div class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Cumplieron</div>
+            <div class="text-3xl font-extrabold text-emerald-400 mt-1">${total.cumplieron}</div>
+          </div>
+          <div class="bg-[#0e7490]/10 border border-cyan-900 rounded-lg p-4 text-center">
+            <div class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">% Cumplimiento</div>
+            <div class="text-3xl font-extrabold ${total.pct_num >= 70 ? 'text-emerald-400' : total.pct_num > 0 ? 'text-amber-400' : 'text-red-400'} mt-1">${total.pct_cumplimiento}</div>
+          </div>
+        </div>`;
+
+      const lectura = generarLecturaEjecutiva(datosPorPais, total, cruce);
+      const lecturaHtml = `
+        <div class="mt-4 bg-[#0d1526] border border-gray-800 rounded-lg overflow-hidden">
+          <div class="bg-[#1e293b] px-3 py-2 text-[11px] font-bold text-gray-300 uppercase tracking-wider">Lectura ejecutiva</div>
+          <div class="divide-y divide-gray-800">
+            ${lectura.map(l => `
+              <div class="flex gap-3 px-3 py-2 text-xs">
+                <span class="text-cyan-400 font-bold shrink-0 w-32">${l.titulo}</span>
+                <span class="text-gray-300">${l.texto}</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+
+      document.getElementById('tabla-resumen-pais').innerHTML = tablaHtml + kpiHtml + lecturaHtml;
+    }
+
     async function renderResumenPais(main) {
       main.innerHTML = `<div class="bg-[#111827] p-4 rounded-lg border border-gray-800">
         <div class="flex justify-between items-center mb-3">
@@ -651,14 +786,18 @@
             <button id="btn-exp-pais" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded">⬇️ Exportar XLSX</button>
           </div>
         </div>
-        <p class="text-[11px] text-gray-500 mb-3">Solo leads con tipo de reunión "Llamada Telefónica". Tolerancia ±5 min. Teléfonos comparados por los últimos 8 dígitos.</p>
+        <p class="text-[11px] text-gray-500 mb-3">Solo leads con tipo de reunión "Llamada Telefónica". Tolerancia ±5 min. Teléfonos comparados por los últimos 8 dígitos. Ejecutivo identificado por su extensión (PBX) o usuario (celular) según el catálogo.</p>
         <div id="tabla-resumen-pais" class="overflow-auto text-xs"><span class="text-cyan-400">Calculando cruce...</span></div>
       </div>`;
 
       const cruce = await calcularCruce();
-      const datos = agregar(cruce, r => ({ key: r.pais, datos: { pais: r.pais } }));
-      pintarResumenSimple('tabla-resumen-pais', datos, ['pais', 'leads', 'evaluados', 'cumplieron', 'fuera_horario', 'otra_fecha', 'sin_llamada', 'pendientes', 'no_cumplieron', 'pct_cumplimiento', 'clasificacion_html']);
-      document.getElementById('btn-exp-pais').onclick = () => exportarXLSXGenerico(datos.map(({clasificacion_html, ...r}) => r), 'resumen_por_pais');
+      const datos = agregar(cruce, r => ({ key: r.pais, datos: { pais: r.pais } }))
+        .sort((a, b) => nombrePais(a.pais).localeCompare(nombrePais(b.pais)));
+      const total = calcularFilaTotal(datos);
+      pintarTablaResumenPais(datos, total, cruce);
+      document.getElementById('btn-exp-pais').onclick = () => exportarXLSXGenerico(
+        [...datos, total].map(({clasificacion_html, pct_num, ...r}) => r), 'resumen_por_pais'
+      );
     }
 
     // ==================================================================
